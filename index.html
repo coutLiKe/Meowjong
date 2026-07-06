@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Meowjong — Learn &amp; Play FJ Mahjong</title>
-  <link rel="stylesheet" href="css/style.css?v=p3" />
+  <link rel="stylesheet" href="css/style.css?v=p4" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Crect x='3' y='3' width='58' height='66' rx='12' fill='%23fffdf4' stroke='%23c9b993' stroke-width='4'/%3E%3Cpath d='M6 52 h52 v8 a10 10 0 0 1 -10 10 h-32 a10 10 0 0 1 -10 -10 z' fill='%237fa877'/%3E%3Ccircle cx='32' cy='31' r='16' fill='none' stroke='%231e7a3c' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='8.5' fill='none' stroke='%23b3232a' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='3' fill='%23b3232a'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -24,9 +24,6 @@
     </label>
     <label class="toggle" title="Professor Paws comments automatically as you play">
       <input type="checkbox" id="toggle-coach" checked /> <span class="ico" data-icon="graduation-cap"></span>Auto-coach
-    </label>
-    <label class="toggle" title="The Analyst — ranks every action with win/risk estimates and simulated futures">
-      <input type="checkbox" id="toggle-analyst" /> <span class="ico" data-icon="chart"></span>Analyst
     </label>
   </header>
 
@@ -108,13 +105,10 @@
           <div id="coach-msg"></div>
         </div>
         <button id="hint-btn" class="action-btn primary"><span class="ico" data-icon="lightbulb"></span>Hint: what should I discard?</button>
-      </aside>
-
-      <aside id="analyst" class="hidden">
-        <h3><span class="ico" data-icon="chart"></span> The Analyst
-          <label class="an-auto" title="Analyze automatically on your turn"><input type="checkbox" id="analyst-auto" checked /> auto</label>
-        </h3>
-        <div id="an-body"></div>
+        <details id="analysis">
+          <summary><span class="ico" data-icon="chart"></span> Show my full analysis <span class="an-hint">every action, ranked</span></summary>
+          <div id="an-body"></div>
+        </details>
       </aside>
     </div>
 
@@ -159,15 +153,15 @@
 
   <!-- PeerJS is vendored (js/vendor/peerjs.min.js) and lazy-loaded on first Party use,
        so the boot path never depends on the network. -->
-  <script src="js/icons.js?v=p3"></script>
-  <script src="js/tiles.js?v=p3"></script>
-  <script src="js/faces.js?v=p3"></script>
-  <script src="js/engine.js?v=p3"></script>
-  <script src="js/ai.js?v=p3"></script>
-  <script src="js/net.js?v=p3"></script>
-  <script src="js/ui.js?v=p3"></script>
-  <script src="js/analyst.js?v=p3"></script>
-  <script src="js/tutorial.js?v=p3"></script>
-  <script src="js/main.js?v=p3"></script>
+  <script src="js/icons.js?v=p4"></script>
+  <script src="js/tiles.js?v=p4"></script>
+  <script src="js/faces.js?v=p4"></script>
+  <script src="js/engine.js?v=p4"></script>
+  <script src="js/ai.js?v=p4"></script>
+  <script src="js/net.js?v=p4"></script>
+  <script src="js/ui.js?v=p4"></script>
+  <script src="js/analyst.js?v=p4"></script>
+  <script src="js/tutorial.js?v=p4"></script>
+  <script src="js/main.js?v=p4"></script>
 </body>
 </html>

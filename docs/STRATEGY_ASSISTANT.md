@@ -1,7 +1,16 @@
 # Design Draft: The Analyst — Advanced Strategy Assistant
 
-**Status: proposal only — not implemented.**
-A deep strategic analysis system for FJ Meowjong, distinct from both the Tutorial and Professor Paws (the Coach).
+**Status: implemented and merged into Professor Paws (one brain, two voices).**
+
+As of the revamp, the Analyst is no longer a separate panel/toggle. Its engine is now the
+**single source of truth** behind Professor Paws: Paws speaks the engine's top-ranked action
+in friendly prose (Hint + the glowing tile), and the ranked table below (`Show my full
+analysis`, a `<details>` expander in Paws' panel) reveals the *same* engine's full working —
+every action ranked, threat meters, and rollouts. Because both read one engine, Paws' Hint
+can never contradict the table's ➊. See `js/analyst.js` (`analystRecommendation`,
+`anFriendlyReason`) and `js/ai.js` (`coachHint`). The sections below are the original design
+draft, retained for reference; where they describe the Analyst as a distinct system, read
+that as its engine, now surfaced through Paws.
 
 ---
 

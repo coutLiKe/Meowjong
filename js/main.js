@@ -802,6 +802,12 @@ function giveHint() {
   const you = G.seats[0];
   const tiles = you.hand.concat(you.drawn !== null ? [you.drawn] : []);
   const hint = coachHint(tiles, you.melds);
+  if (hint.win || hint.kind === null) {
+    G.suggestKind = null;
+    coachSay(hint.message, "🙀");
+    renderHand();
+    return;
+  }
   G.suggestKind = hint.kind;
   coachSay(`I'd discard <b>${tileShort(hint.kind)}</b> (it's glowing in your hand).<br><br>${hint.message}`, "🎓");
   renderHand();

@@ -16,9 +16,12 @@
    own projected view of the table, so it can't leak hidden info.
    ============================================================ */
 
+/* Professor Paws and the full analysis share ONE engine. Paws speaks the
+   top-ranked action in friendly prose (see anFriendlyReason + coachHint);
+   the "Show my full analysis" expander reveals the same ranking with numbers,
+   threat meters and rollouts. `open` tracks that expander. */
 const ANALYST = {
-  on: false,          // panel enabled (header toggle)
-  auto: true,         // analyze automatically on your turn
+  open: false,        // the "full analysis" expander is unfolded
   token: 0,           // cancels stale rollouts
   mode: "idle",       // idle | turn | claim
   rows: null,
@@ -328,11 +331,39 @@ function anAnalyzeClaim(opts, kind) {
   return { rows, threats, claim: true };
 }
 
-/* ---------- Panel UI ---------- */
+/* ---------- Shared with Professor Paws (one brain) ---------- */
 
-function anSetVisible(v) {
-  $("#analyst").classList.toggle("hidden", !v);
+/* Run the fast, exact part of the engine (Layers 1–2, no rollouts) and hand
+   back the analysis. Professor Paws calls this so his Hint and glow always
+   match the ranked table's #1 line. Cheap (<10 ms) — safe to call on demand. */
+function analystRecommendation() {
+  if (typeof anAnalyzeTurn !== "function" || !G.turnCtx) return null;
+  // If the full-analysis table is open, reuse the very object it's displaying —
+  // including any rollout re-ranking — so Paws' pick is exactly the table's ➊.
+  if (ANALYST.open && ANALYST.analysis && !ANALYST.analysis.claim && ANALYST.analysis.rows) {
+    return ANALYST.analysis;
+  }
+  return anAnalyzeTurn();   // panel closed: fresh, deterministic Layer 1–2
 }
+
+/* Turn the engine's top discard row into Professor Paws' friendly rationale. */
+function anFriendlyReason(r) {
+  if (!r) return "";
+  let d;
+  if (r.sh === 0) {
+    const bits = (r.waits || []).map(k => `${tileShort(k)}${k === wildOf() ? " 🥇" : ""} <b>(${liveCount(k)} left)</b>`).join(", ");
+    d = `Throwing <b>${tileShort(r.kind)}</b> makes you <b>ready to win (tenpai)</b> — you'd be waiting on ${bits}, that's <b>${r.outs} live out${r.outs === 1 ? "" : "s"}</b>`;
+    if (r.goldOuts) d += ` (plus ${r.goldOuts} gold draw${r.goldOuts === 1 ? "" : "s"})`;
+    d += ".";
+    if (r.outs === 0 && !r.goldOuts) d += `<br>⚠️ …but every copy of those tiles is already visible — that wait is <b>dead</b>. Reshape instead!`;
+  } else {
+    d = `<b>${tileShort(r.kind)}</b> is the tile your hand needs <b>least</b> right now — let it go and you're about <b>${r.sh} step${r.sh === 1 ? "" : "s"} from ready</b>.`;
+  }
+  if (r.riskNote) d += `<br>🛡️ Safety check: ${r.riskNote}.`;
+  return d;
+}
+
+/* ---------- Panel UI ---------- */
 
 function anStatus(msg) {
   ANALYST.mode = "idle";
@@ -341,7 +372,7 @@ function anStatus(msg) {
 }
 
 function anRender() {
-  if (!ANALYST.on || !ANALYST.analysis) return;
+  if (!ANALYST.open || !ANALYST.analysis) return;
   const a = ANALYST.analysis;
   const rows = a.rows;
   const body = $("#an-body");
@@ -417,13 +448,12 @@ function anDetail(r) {
 /* ---------- Hooks (called from main.js, all optional) ---------- */
 
 function analystOnTurn() {
-  if (!ANALYST.on) return;
-  if (!ANALYST.auto) { anStatus(`It's your turn — <button class="an-linkbtn" onclick="analystRunNow()">analyze it</button>`); return; }
+  if (!ANALYST.open) return;
   analystRunNow();
 }
 
 function analystRunNow() {
-  if (!ANALYST.on || !G.turnCtx) return;
+  if (!ANALYST.open || !G.turnCtx) return;
   ANALYST.token++;
   ANALYST.mode = "turn";
   ANALYST.expanded = null;
@@ -435,7 +465,7 @@ function analystRunNow() {
 }
 
 function analystOnClaim(opts, kind) {
-  if (!ANALYST.on) return;
+  if (!ANALYST.open) return;
   ANALYST.token++;
   ANALYST.mode = "claim";
   ANALYST.expanded = null;
@@ -446,32 +476,27 @@ function analystOnClaim(opts, kind) {
 }
 
 function analystIdle() {
-  if (!ANALYST.on) return;
+  if (!ANALYST.open) return;
   ANALYST.token++;
   ANALYST.analysis = null;
   anStatus("Waiting for your next decision…");
 }
 
+/* The full analysis lives inside Professor Paws' panel as a <details> expander.
+   Opening it turns the engine's ranked table on; Paws' Hint/glow use the same
+   engine whether or not the table is showing, so the two never disagree. */
 function analystInit() {
-  ANALYST.on = storeGet("meowjong-analyst") === "1";
-  ANALYST.auto = storeGet("meowjong-analyst-auto") !== "0";
-  const tgl = $("#toggle-analyst");
-  tgl.checked = ANALYST.on;
-  anSetVisible(ANALYST.on);
-  $("#analyst-auto").checked = ANALYST.auto;
-  tgl.addEventListener("change", e => {
-    ANALYST.on = e.target.checked;
-    storeSet("meowjong-analyst", ANALYST.on ? "1" : "0");
-    anSetVisible(ANALYST.on);
-    if (ANALYST.on) {
-      if (G.awaitingDiscard && G.turnCtx) analystOnTurn();
-      else anStatus("Waiting for your next decision…");
-    }
+  const det = $("#analysis");
+  if (!det) return;
+  ANALYST.open = storeGet("meowjong-analysis") === "1";
+  det.open = ANALYST.open;
+  if (ANALYST.open) anStatus("Open on your turn to see every action ranked.");
+  det.addEventListener("toggle", () => {
+    ANALYST.open = det.open;
+    storeSet("meowjong-analysis", ANALYST.open ? "1" : "0");
+    if (!ANALYST.open) return;
+    if (G.awaitingDiscard && G.turnCtx) analystRunNow();
+    else if (ANALYST.mode === "claim" && ANALYST.analysis) anRender();
+    else anStatus("Open on your turn to see every action ranked.");
   });
-  $("#analyst-auto").addEventListener("change", e => {
-    ANALYST.auto = e.target.checked;
-    storeSet("meowjong-analyst-auto", ANALYST.auto ? "1" : "0");
-    if (ANALYST.auto && G.awaitingDiscard && G.turnCtx) analystOnTurn();
-  });
-  anStatus("Waiting for your next decision…");
 }

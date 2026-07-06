@@ -37,13 +37,15 @@ Everyone sees the table from their own seat (flower rows and the gold are public
 - **🎓 Interactive tutorial** — 9 lessons with quizzes, FJ rules from zero (auto-opens first visit)
 - **🧠 Strategy School** — 6 advanced lessons: steps-to-ready, wait shapes, counting live
   tiles, gold strategy, flower economics (bet sizing), claim discipline
-- **💡 Hint button** — suggests a discard with reasons, live-tile counts, and gold warnings
-- **🎓 Auto-coach** — distance to ready, gold/flower alerts, tenpai alerts, danger warnings
-- **📊 The Analyst** (header toggle, off by default) — an advanced strategy assistant: ranks
-  *every* available action with EV / win% / deal-in risk, models each opponent (speed ×
-  flower payout × suit reads), and refines the ranking with Monte Carlo rollouts of
-  simulated futures. Expandable reasoning per action, threat meters, claim-decision
-  analysis. Design doc: `docs/STRATEGY_ASSISTANT.md`
+- **🎓 Professor Paws** — one friendly coach, one brain. He auto-comments as you play
+  (distance to ready, gold/flower alerts, tenpai/danger warnings) and his **💡 Hint** button
+  suggests the discard to make — with live-tile counts, safety reads, and gold warnings.
+- **📊 Show my full analysis** — an expander inside Paws' panel that reveals the *same*
+  engine's full working: **every** legal action ranked by EV / win% / deal-in risk, each
+  opponent modelled (speed × flower payout × suit reads), and Monte Carlo rollouts of
+  simulated futures. Because Paws' Hint and the ranked table read one engine, they never
+  disagree — the tile Paws glows is the table's top line. Design doc:
+  `docs/STRATEGY_ASSISTANT.md`
 - **👀 Peek mode** — see the AI cats' hands while you learn (single-player only)
 - **🔤 Labels toggle** — corner numbers/letters on tiles while you learn to read the faces
 - **📜 Game log** — every action narrated in plain English

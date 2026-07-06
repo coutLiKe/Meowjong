@@ -242,14 +242,53 @@ function discardReason(hand, k) {
   return `${tileName(k)} is the tile your hand needs <b>least</b> right now — every other tile is doing more work toward a set or pair.`;
 }
 
-/* Full coach hint for the human's 14-tile hand */
+/* Full coach hint for the human's 14-tile hand.
+
+   ONE BRAIN: Professor Paws speaks the Analyst engine's #1 line so his Hint
+   (and the glowing tile) can never contradict the ranked "Full analysis"
+   table. The engine ranks by EV (win% × payout − deal-in risk); Paws just
+   translates that top pick into friendly prose. If the engine is unavailable
+   (e.g. a party-mode edge case with no turn context), he falls back to the
+   lightweight heuristic below. */
 function coachHint(hand, melds) {
   const wild = (G.wildKind !== null && G.wildKind !== undefined) ? G.wildKind : -1;
   const golds = wild >= 0 ? hand.filter(t => t === wild).length : 0;
-  const best = chooseDiscard(hand, wild);
-  const remaining = hand.filter((t, i) => i !== hand.indexOf(best.kind));
+
+  // Preferred path: borrow the Analyst engine's ranking.
+  let best = null;
+  if (typeof analystRecommendation === "function") {
+    const a = analystRecommendation();
+    if (a && a.rows) {
+      const top = a.rows[0];
+      if (top && top.type === "win") {
+        return { kind: null, win: true,
+          message: `🙀 <b>Don't discard — you can WIN right now!</b> Hit the <b>Hú! 胡</b> button and take it.` };
+      }
+      best = a.rows.find(r => r.type === "discard");
+      // If a Kong out-ranks every discard, say so — it's the table's #1 line.
+      if (best && top && top.type === "kong" && top !== best) {
+        let msg = `🔎 My top line is actually <b>${top.label}</b> — ${top.detail}`;
+        msg += `<br><br>If you'd rather just discard, I'd throw <b>${tileShort(best.kind)}</b> (glowing now): ${anFriendlyReason(best)}`;
+        if (golds > 0) msg += `<br><br>🥇 And guard your gold${golds > 1 ? "s" : ""} (${tileShort(wild)}) — never discard those.`;
+        return { kind: best.kind, message: msg };
+      }
+    }
+  }
+
+  if (best) {
+    let msg = anFriendlyReason(best);
+    if (golds > 0) {
+      msg += `<br><br>🥇 You're holding <b>${golds} gold${golds > 1 ? "s" : ""}</b> (${tileShort(wild)}) — never throw those away! ${golds === 2 ? "One more and you win instantly (三金倒)!" : "Gold completes any set."}`;
+    }
+    msg += `<br><br><i>Want the full ranking? Open <b>“Show my full analysis”</b> below.</i>`;
+    return { kind: best.kind, message: msg };
+  }
+
+  // Fallback: lightweight heuristic (no live engine / turn context).
+  const bd = chooseDiscard(hand, wild);
+  const remaining = hand.filter((t, i) => i !== hand.indexOf(bd.kind));
   const waits = winningKinds(remaining, melds, wild);
-  let msg = discardReason(hand, best.kind);
+  let msg = discardReason(hand, bd.kind);
   if (golds > 0) {
     msg += `<br><br>🥇 You're holding <b>${golds} gold${golds > 1 ? "s" : ""}</b> (${tileShort(wild)}) — never throw those away! ${golds === 2 ? "One more and you win instantly (三金倒)!" : "Gold completes any set."}`;
   }
@@ -260,7 +299,7 @@ function coachHint(hand, melds) {
       msg += `<br>⚠️ …but <b>every one of those tiles is already visible — that wait is dead!</b> Count the living tiles and reshape.`;
     }
   }
-  const danger = dangerNote(best.kind);
+  const danger = dangerNote(bd.kind);
   if (danger) msg += `<br><br>${danger}`;
-  return { kind: best.kind, message: msg };
+  return { kind: bd.kind, message: msg };
 }
