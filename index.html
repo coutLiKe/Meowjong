@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meowjong — Learn &amp; Play FJ Mahjong</title>
+  <link rel="stylesheet" href="css/style.css?v=p3" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Crect x='3' y='3' width='58' height='66' rx='12' fill='%23fffdf4' stroke='%23c9b993' stroke-width='4'/%3E%3Cpath d='M6 52 h52 v8 a10 10 0 0 1 -10 10 h-32 a10 10 0 0 1 -10 -10 z' fill='%237fa877'/%3E%3Ccircle cx='32' cy='31' r='16' fill='none' stroke='%231e7a3c' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='8.5' fill='none' stroke='%23b3232a' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='3' fill='%23b3232a'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <header>
+    <h1><span class="brand-slot brand-sm"></span> Meowjong</h1>
+    <span class="subtitle">FJ mahjong — learn &amp; play</span>
+    <button id="btn-menu"><span class="ico" data-icon="home"></span>Menu</button>
+    <button id="btn-tutorial"><span class="ico" data-icon="book-open"></span>Tutorial</button>
+    <button id="btn-strategy"><span class="ico" data-icon="target"></span>Strategy</button>
+    <button id="btn-party"><span class="ico" data-icon="users"></span>Party</button>
+    <button id="btn-newhand"><span class="ico" data-icon="refresh"></span>Re-deal</button>
+    <label class="toggle" title="Show the cats' hands face-up while you learn (single-player only)">
+      <input type="checkbox" id="toggle-peek" /> <span class="ico" data-icon="eye"></span>Peek
+    </label>
+    <label class="toggle" title="Small corner numbers/letters on every tile while you learn to read the faces">
+      <input type="checkbox" id="toggle-labels" checked /> <span class="ico" data-icon="type"></span>Labels
+    </label>
+    <label class="toggle" title="Professor Paws comments automatically as you play">
+      <input type="checkbox" id="toggle-coach" checked /> <span class="ico" data-icon="graduation-cap"></span>Auto-coach
+    </label>
+    <label class="toggle" title="The Analyst — ranks every action with win/risk estimates and simulated futures">
+      <input type="checkbox" id="toggle-analyst" /> <span class="ico" data-icon="chart"></span>Analyst
+    </label>
+  </header>
+
+  <div id="layout">
+    <div id="table">
+      <div class="section-label"><span class="ico" data-icon="users"></span> The other players — their tiles are hidden</div>
+      <section id="opponents">
+        <div class="opp" id="opp-3">
+          <div class="opp-top">
+            <span class="opp-name"></span>
+            <span class="opp-wind"></span>
+            <span class="opp-score"></span>
+          </div>
+          <div class="opp-sub">plays before you — you can Chi from them!</div>
+          <div class="opp-hand"></div>
+          <div class="opp-flowers"></div>
+          <div class="opp-melds"></div>
+        </div>
+        <div class="opp" id="opp-2">
+          <div class="opp-top">
+            <span class="opp-name"></span>
+            <span class="opp-wind"></span>
+            <span class="opp-score"></span>
+          </div>
+          <div class="opp-sub">sits across the table</div>
+          <div class="opp-hand"></div>
+          <div class="opp-flowers"></div>
+          <div class="opp-melds"></div>
+        </div>
+        <div class="opp" id="opp-1">
+          <div class="opp-top">
+            <span class="opp-name"></span>
+            <span class="opp-wind"></span>
+            <span class="opp-score"></span>
+          </div>
+          <div class="opp-sub">plays right after you</div>
+          <div class="opp-hand"></div>
+          <div class="opp-flowers"></div>
+          <div class="opp-melds"></div>
+        </div>
+      </section>
+
+      <div class="section-label"><span class="ico" data-icon="grid"></span> The table — draw pile ("wall") and discard pile</div>
+      <section id="center">
+        <div id="status-line">
+          <span>Wall: <b id="wall-count">–</b> tiles left to draw</span>
+          <span id="round-label">Hand 1</span>
+          <span>Your points: <b id="your-score">–</b></span>
+        </div>
+        <div id="gold-line">🥇 <b>GOLD (wild):</b> <span id="gold-slot"></span></div>
+        <div class="river-label">Discard pile:</div>
+        <div id="river"></div>
+        <div id="prompt"></div>
+        <div id="actions"></div>
+      </section>
+
+      <div class="section-label"><span class="ico" data-icon="layers"></span> Your hand — 13 tiles (a 14th appears when you draw; then you discard one)</div>
+      <section id="player-panel">
+        <div id="player-top">
+          <span class="opp-name">You</span>
+          <span class="opp-sub" id="turn-order"></span>
+        </div>
+        <div id="your-flowers"></div>
+        <div id="your-melds"></div>
+        <div id="hand"></div>
+      </section>
+
+      <details id="legend" open>
+        <summary><span class="ico" data-icon="search"></span> Tile guide — what am I looking at?</summary>
+        <div id="legend-body"></div>
+      </details>
+    </div>
+
+    <div id="sidebar">
+      <aside id="coach">
+        <h3><span class="ico" data-icon="graduation-cap"></span> Professor Paws</h3>
+        <div id="coach-bubble">
+          <div id="coach-face">🐱</div>
+          <div id="coach-msg"></div>
+        </div>
+        <button id="hint-btn" class="action-btn primary"><span class="ico" data-icon="lightbulb"></span>Hint: what should I discard?</button>
+      </aside>
+
+      <aside id="analyst" class="hidden">
+        <h3><span class="ico" data-icon="chart"></span> The Analyst
+          <label class="an-auto" title="Analyze automatically on your turn"><input type="checkbox" id="analyst-auto" checked /> auto</label>
+        </h3>
+        <div id="an-body"></div>
+      </aside>
+    </div>
+
+    <div id="log-wrap">
+      <h3><span class="ico" data-icon="list"></span> Game log — everything that happens, narrated</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <!-- Loading screen -->
+  <div id="screen-loading">
+    <div class="menu-logo brand-slot"></div>
+    <div class="menu-title">Meowjong</div>
+    <div class="menu-sub">FJ (Fujian) Mahjong — gold rush edition</div>
+    <div class="load-bar"><div class="load-fill"></div></div>
+    <div class="load-note">Shuffling the tiles…</div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="screen-menu" class="hidden">
+    <div class="menu-logo brand-slot"></div>
+    <div class="menu-title">Meowjong</div>
+    <div class="menu-sub">FJ (Fujian) Mahjong — gold rush edition</div>
+    <div class="menu-tiles" id="menu-tiles"></div>
+    <div class="menu-buttons">
+      <button class="menu-btn hidden" id="menu-resume"><span class="mb-head"><span class="ico" data-icon="refresh"></span>Resume match</span><span id="menu-resume-sub"></span></button>
+      <button class="menu-btn primary" id="menu-solo"><span class="mb-head"><span class="ico" data-icon="play"></span>Single Player</span><span>vs. three café cats — coach included</span></button>
+      <button class="menu-btn" id="menu-party"><span class="mb-head"><span class="ico" data-icon="users"></span>Party Mode</span><span>host or join with a room code</span></button>
+      <button class="menu-btn" id="menu-tutorial"><span class="mb-head"><span class="ico" data-icon="book-open"></span>Tutorial</span><span>learn FJ mahjong from zero</span></button>
+      <button class="menu-btn" id="menu-strategy"><span class="mb-head"><span class="ico" data-icon="target"></span>Strategy School</span><span>waits, golds, flowers &amp; defense</span></button>
+    </div>
+    <div class="menu-foot">Winds are flowers 🌸 · the flipped gold 🥇 is wild · 4 sets + a pair, then call <b>Hú! 胡</b></div>
+    <button class="menu-link" id="menu-rules">📋 House rules &amp; scoring</button>
+  </div>
+
+  <div id="modal-overlay" class="hidden">
+    <div id="modal">
+      <div id="modal-content"></div>
+      <div id="modal-buttons"></div>
+    </div>
+  </div>
+
+  <!-- PeerJS is vendored (js/vendor/peerjs.min.js) and lazy-loaded on first Party use,
+       so the boot path never depends on the network. -->
+  <script src="js/icons.js?v=p3"></script>
+  <script src="js/tiles.js?v=p3"></script>
+  <script src="js/faces.js?v=p3"></script>
+  <script src="js/engine.js?v=p3"></script>
+  <script src="js/ai.js?v=p3"></script>
+  <script src="js/net.js?v=p3"></script>
+  <script src="js/ui.js?v=p3"></script>
+  <script src="js/analyst.js?v=p3"></script>
+  <script src="js/tutorial.js?v=p3"></script>
+  <script src="js/main.js?v=p3"></script>
+</body>
+</html>

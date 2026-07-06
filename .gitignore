@@ -1,0 +1,11 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor/tooling
+*.log
+node_modules/
+
+# Scratch
+tmp/
+*.tmp

@@ -1,0 +1,9 @@
+{
+  "name": "meowjong",
+  "version": "1.0.0",
+  "description": "FJ (Fujian) mahjong — learn & play, with tutorial, coach, Analyst, and party mode.",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run.js"
+  }
+}
