@@ -250,6 +250,7 @@ function startHand() {
   replaceInitialFlowers();
   flipGold();
   renderAll();
+  if (typeof fxSyncRiver === "function") fxSyncRiver();
 
   if (G.autoCoach) coachSay(`A fresh hand! The gold is <b>${tileShort(wildOf())}</b> — its remaining copies are wild. Goal: <b>4 sets + 1 pair</b> (the pair must be natural tiles, no golds).`, "🥇");
 
@@ -374,6 +375,7 @@ async function takeTurn(seat, mode, gen) {
     }
   }
   renderAll();
+  if (mode !== "nodraw" && isInteractive(s) && typeof fxAfterDraw === "function") fxAfterDraw();
   return isInteractive(s) ? interactiveTurnLoop(seat, mode, gen) : aiTurnLoop(seat, mode, gen);
 }
 
@@ -459,6 +461,7 @@ function beginTurnPrompt(ctx, sink) {
     : "<b>Your turn!</b> Click a tile to select it, then click it again (or press Discard) to throw it.");
   refreshTurnActions();
   renderAll();
+  if (ctx.mode !== "nodraw" && typeof fxTurnStart === "function") fxTurnStart();
   if (typeof analystOnTurn === "function") analystOnTurn();
 }
 
@@ -572,6 +575,7 @@ function pushDiscard(seat, kind) {
   G.lastDiscard = { kind, seat };
   log(`${G.seats[seat].emoji} ${G.seats[seat].name} discards <b>${tileShort(kind)}</b> <span class="log-dim">(${tileName(kind)})</span>.`);
   renderAll();
+  if (typeof fxAfterDiscard === "function") fxAfterDiscard();
 }
 
 async function resolveClaims(discarder, kind, gen) {
@@ -725,6 +729,7 @@ function applyClaim(claim, discarder) {
   }
   log(`${s.emoji} <b>${s.name} claims ${(MELD_LABEL[claim.claimType] || claim.claimType).toUpperCase()}!</b> on ${tileShort(claim.kind)} from ${G.seats[discarder].name}.`, "log-claim");
   renderAll();
+  if (typeof fxAfterClaim === "function") fxAfterClaim(claim.seat);
   if (s.melds.length >= 3 && !s.threatWarned) {
     s.threatWarned = true;
     const flowerBit = s.flowers.length >= 3 ? ` They also have <b>${s.flowers.length} flowers</b>, so their win pays big.` : "";
@@ -852,6 +857,7 @@ async function doWin(seat, winTile, selfDraw, discarder, special = {}) {
   clearActions();
   setPrompt("");
   renderAll();
+  if (typeof fxWin === "function") fxWin(seat === 0);
 
   const howType = special.qiangJin ? "qiangjin" : (threeGold && !shapeWin) ? "threegold" : selfDraw ? "selfdraw" : "discard";
   // Structured, safe payload — shared by the host modal, the guest modal, and the log.
@@ -958,6 +964,7 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("error", e => reportFatal(e.error || e.message));
   window.addEventListener("unhandledrejection", e => reportFatal(e.reason));
   applyIcons();
+  if (typeof fxInit === "function") fxInit();
   if (typeof analystInit === "function") analystInit();
 
   $("#btn-menu").addEventListener("click", () => {
@@ -977,6 +984,11 @@ window.addEventListener("DOMContentLoaded", () => {
       { label: "Cancel", cls: "secondary", cb: hideModal },
     ]);
   });
+  // M7.1: the ⚙ Options popover closes when you click anywhere else
+  const hudSettings = $("#hud-settings");
+  if (hudSettings) document.addEventListener("click", e => {
+    if (hudSettings.open && !hudSettings.contains(e.target)) hudSettings.open = false;
+  });
   $("#toggle-peek").addEventListener("change", e => { G.peek = e.target.checked; renderAll(); });
   $("#toggle-labels").addEventListener("change", e => {
     document.body.classList.toggle("hide-corners", !e.target.checked);
@@ -985,6 +997,27 @@ window.addEventListener("DOMContentLoaded", () => {
     G.autoCoach = e.target.checked;
     coachSay(G.autoCoach ? "I'm back! I'll comment as you play. 🐾" : "Going quiet — the Hint button still works if you need me. 🤫");
   });
+  // M6/M7.5: Professor Paws floats bottom-right and collapses to a chat-bubble
+  // tab. On phones the expanded card covers the hand + action dock, so it
+  // starts collapsed on narrow screens (unless the player set a preference),
+  // and the collapse state persists across sessions.
+  const coachCollapse = $("#coach-collapse");
+  if (coachCollapse) {
+    const pref = (typeof storeGet === "function") ? storeGet("meowjong-paws-collapsed") : null;
+    const startCollapsed = pref === "1" || (pref === null && window.innerWidth <= 900);
+    setCoachCollapsed(startCollapsed);
+    coachCollapse.addEventListener("click", () => {
+      setCoachCollapsed(!$("#coach").classList.contains("collapsed"), true);
+    });
+    // shrinking to a narrow width auto-collapses (once) so Paws never buries
+    // the hand; it never auto-expands, so it won't fight a deliberate open
+    let wasNarrow = window.innerWidth <= 900;
+    window.addEventListener("resize", () => {
+      const narrow = window.innerWidth <= 900;
+      if (narrow && !wasNarrow && !$("#coach").classList.contains("collapsed")) setCoachCollapsed(true);
+      wasNarrow = narrow;
+    });
+  }
   $("#modal-overlay").addEventListener("click", e => { if (e.target.id === "modal-overlay") hideModal(); });
 
   // main menu buttons

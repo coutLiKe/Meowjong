@@ -32,18 +32,51 @@ body {
   color: var(--ink);
 }
 
-/* ---------- Header ---------- */
-header {
+/* ---------- M6 · Top HUD bar ---------- */
+header#hud {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px 16px;
   flex-wrap: wrap;
-  padding: 10px 18px;
+  padding: 8px 16px;
   background: var(--ink);
   color: #f7ead7;
+  position: relative;
+  z-index: 20;
+  box-shadow: 0 2px 10px rgba(40, 26, 14, 0.35);
 }
-header h1 { font-size: 22px; margin: 0; letter-spacing: 0.5px; }
-header .subtitle { font-size: 12px; opacity: 0.75; margin-right: auto; }
+.hud-brand { display: flex; align-items: baseline; gap: 8px; }
+header h1 { font-size: 20px; margin: 0; letter-spacing: 0.5px; }
+.hud-status { display: flex; align-items: center; gap: 8px; }
+.hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  background: rgba(255, 243, 224, 0.12);
+  border-radius: 14px;
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+.hud-chip b { color: #ffd65a; }
+.wall-bar {
+  width: 56px;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  display: inline-block;
+}
+.wall-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ffd65a, var(--accent));
+  transition: width 0.4s ease;
+}
+.hud-tabs { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.hud-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 header button, .toggle {
   font-family: inherit;
   font-size: 13px;
@@ -57,30 +90,124 @@ header button, .toggle {
 header button:hover { background: var(--accent-dark); }
 .toggle { display: inline-flex; align-items: center; gap: 6px; background: #5c4636; user-select: none; }
 .toggle input { accent-color: var(--accent); }
-
-/* ---------- Layout ---------- */
-#layout {
-  display: grid;
-  grid-template-columns: 1fr 290px;
-  gap: 14px;
-  padding: 14px 18px;
-  max-width: 1250px;
-  margin: 0 auto;
-}
-@media (max-width: 980px) {
-  #layout { grid-template-columns: 1fr; }
-}
-
-#table { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-
-.section-label {
+.toggle select {
+  font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  opacity: 0.65;
-  margin-top: 6px;
+  border: none;
+  border-radius: 8px;
+  background: #4a3628;
+  color: #fff3e0;
+  padding: 2px 4px;
 }
+
+/* M7.1 · the ⚙ Options popover — peek/labels/coach/fx moved off the bar */
+#hud-settings { position: relative; }
+#hud-settings > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  border-radius: 18px;
+  padding: 7px 14px;
+  cursor: pointer;
+  background: #6b5240;
+  user-select: none;
+}
+#hud-settings > summary::-webkit-details-marker { display: none; }
+#hud-settings > summary:hover, #hud-settings[open] > summary { background: var(--accent-dark); }
+#hud-settings > summary .ico { margin-right: 5px; }
+.hud-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 210px;
+  background: var(--ink);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 12px 30px rgba(40, 26, 14, 0.45), 0 0 0 1.5px rgba(255, 243, 224, 0.15);
+}
+.hud-pop .toggle { justify-content: flex-start; white-space: nowrap; }
+.hud-pop .toggle select { margin-left: auto; }
+
+/* ---------- M6 · Stage layout ---------- */
+#layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+  max-width: 1240px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+/* three-sided seating around the felt (M7.1: slimmer side columns, wider felt —
+   proportions matched to the approved 3D draft) */
+#table {
+  position: relative;
+  display: grid;
+  grid-template-areas:
+    ".    top   ."
+    "left felt  right";
+  /* the middle column shrink-wraps the felt, so the side seats (justified
+     toward it) sit right AT the table's edges; the 1fr sides stay equal */
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 10px 8px;
+  align-items: start;
+}
+/* the across player spreads pill · rack · flowers · melds on ONE line so the
+   top area keeps a stable, shallow height no matter how their hand evolves */
+.seat-top {
+  grid-area: top;
+  justify-self: center;
+  max-width: 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.seat-top .hand-count { width: auto; margin-left: 10px; }
+.seat-top .meld-label { display: none; }
+/* M7.4 · side seats hug the felt but anchor to the FELT side, so a long name
+   (e.g. "Captain Whiskers") grows OUTWARD toward the screen edge instead of
+   pushing into the board. The margin keeps a clear channel between the tile
+   rack and the wooden edge no matter the name length. */
+/* .seat.seat-left beats the later `.opp { align-items:center }` on specificity */
+.seat.seat-left  { grid-area: left;  align-self: center; justify-self: end;   align-items: flex-end;   margin-right: 18px; }
+.seat.seat-right { grid-area: right; align-self: center; justify-self: start; align-items: flex-start; margin-left: 18px; }
+/* very long party names wrap rather than overflow past the screen edge */
+.seat-left .opp-name, .seat-right .opp-name { white-space: normal; }
+/* the tile racks rest against the table edge; the name pills inset a little
+   further so they clear the wooden edge (a box-shadow ring outside the felt) */
+.seat-left .opp-top { text-align: right; margin-right: 16px; }
+.seat-right .opp-top { text-align: left; margin-left: 16px; }
+
+/* M7.3 · side players sit AT the table: their racks run vertically along the
+   felt's left/right edges as sideways tile backs — every seat's tiles line up
+   with the board itself, same proportions all around (like the 3D draft). */
+.seat-left .opp-hand, .seat-right .opp-hand {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.seat-left .opp-hand .tile.back.mini, .seat-right .opp-hand .tile.back.mini {
+  margin: 0 0 -16px;
+  transform: rotate(90deg);
+}
+.seat-right .opp-hand .tile.back.mini { transform: rotate(-90deg); }
+.seat-left .opp-hand .tile.back.mini:last-of-type,
+.seat-right .opp-hand .tile.back.mini:last-of-type { margin-bottom: 0; }
+/* Peek mode: side players' face-up tiles cascade down the same edge,
+   overlapped like a rack so the column stays within the table's height */
+.seat-left .opp-hand .tile.small, .seat-right .opp-hand .tile.small { margin: 0 0 -26px; }
+.seat-left .opp-hand .tile.small:last-of-type, .seat-right .opp-hand .tile.small:last-of-type { margin-bottom: 0; }
+.seat-left .opp-hand .hand-count, .seat-right .opp-hand .hand-count { margin-top: 9px; }
 
 /* ---------- Tile guide ---------- */
 #legend {
@@ -95,42 +222,67 @@ header button:hover { background: var(--accent-dark); }
 .legend-tiles { display: flex; gap: 3px; }
 .legend-caption { font-size: 11.5px; opacity: 0.85; max-width: 170px; }
 
-/* ---------- Opponents ---------- */
-#opponents { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+/* ---------- M7.2 · Seats — uniform, transparent, draft-style ----------
+   Every opponent is the SAME structure at the same proportions: a compact
+   name pill, a centered rack of tile backs, then flowers/melds. No card
+   boxes — the seats float in the scene like the approved 3D draft, and the
+   active player's pill lights up instead of a panel border. */
 .opp {
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 10px 12px;
-  border: 2px solid transparent;
-  box-shadow: 0 2px 6px rgba(74, 52, 38, 0.12);
+  background: none;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
-.opp.active-turn, #player-panel.active-turn { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 137, 90, 0.25); }
-.opp-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.opp-name { font-weight: 700; font-size: 14px; }
-.opp-sub { font-size: 11px; opacity: 0.65; }
-.opp-score, .opp-wind { font-size: 12px; background: #f0e4cf; border-radius: 10px; padding: 2px 8px; }
-.opp-hand, .opp-melds { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 8px; min-height: 30px; align-items: center; }
-.hand-count { font-size: 11px; opacity: 0.6; margin-left: 6px; }
-.meld-label { font-size: 10px; opacity: 0.6; width: 100%; }
+.opp-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  padding: 4px 12px;
+  box-shadow: 0 3px 10px rgba(74, 52, 38, 0.18);
+  max-width: 100%;
+}
+.opp.active-turn .opp-top, #player-panel.active-turn #player-top {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 137, 90, 0.25), 0 3px 10px rgba(74, 52, 38, 0.18);
+}
+.opp-name { font-weight: 700; font-size: 13.5px; white-space: nowrap; }
+.opp-sub { font-size: 10.5px; opacity: 0.6; }
+.opp-score, .opp-wind { font-size: 11.5px; background: #f0e4cf; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+.opp-hand, .opp-melds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  min-height: 26px;
+  align-items: center;
+}
+.hand-count { font-size: 10.5px; opacity: 0.6; width: 100%; text-align: center; }
+.meld-label { font-size: 10px; opacity: 0.6; width: 100%; text-align: center; }
 
-/* ---------- Center / river ---------- */
+/* ---------- M6/M7.1 · The felt table (wide, like the draft) ---------- */
 #center {
+  grid-area: felt;
+  justify-self: center;
+  aspect-ratio: 1.25 / 1;
+  /* explicit size (not 100%) — the auto grid column wraps around it */
+  width: min(60vh, 640px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--felt);
   border: 6px solid var(--felt-dark);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px;
   box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.18);
 }
-#status-line {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  font-size: 13px;
-  color: #fbf6ea;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  margin-bottom: 8px;
-}
-#status-line b { color: #fff; }
 .river-label {
   font-size: 12px;
   font-weight: 700;
@@ -144,8 +296,8 @@ header button:hover { background: var(--accent-dark); }
   gap: 5px;
   align-items: flex-start;
   align-content: flex-start;
+  flex: 1;
   min-height: 68px;
-  max-height: 150px;
   overflow-y: auto;
   padding: 6px;
   background: rgba(0, 0, 0, 0.08);
@@ -165,8 +317,19 @@ header button:hover { background: var(--accent-dark); }
   font-size: 11px;
   filter: drop-shadow(0 1px 1px rgba(0,0,0,0.4));
 }
-#prompt { margin-top: 10px; font-size: 15px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.35); min-height: 22px; }
-#actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; min-height: 40px; }
+/* ---------- M7.2 · Action dock — centered under the hand ---------- */
+#dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  min-height: 48px;
+  width: 100%;
+}
+#prompt { font-size: 14.5px; font-weight: 600; min-height: 22px; text-align: center; }
+#actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; min-height: 40px; align-items: center; }
+#actions:empty { min-height: 0; }
 
 /* ---------- Buttons ---------- */
 .action-btn {
@@ -188,18 +351,41 @@ header button:hover { background: var(--accent-dark); }
 .action-btn.pulse { animation: pulse 1s infinite alternate; }
 @keyframes pulse { from { box-shadow: 0 0 0 0 rgba(255, 214, 90, 0.9); } to { box-shadow: 0 0 0 9px rgba(255, 214, 90, 0); } }
 
-/* ---------- Player ---------- */
+/* ---------- M7.2 · Your hand — same visual language as the seats ----------
+   No white slab: a "You" pill on the table's center axis, the hand fanned
+   beneath it, prompt + actions centered under the hand like the draft. */
 #player-panel {
-  background: var(--panel);
-  border-radius: 14px;
-  padding: 12px 14px;
-  border: 2px solid transparent;
-  box-shadow: 0 2px 6px rgba(74, 52, 38, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 0;
+  /* clear the felt's wooden edge (which projects downward under the 3D tilt)
+     so the "You" pill never touches the board */
+  margin-top: 14px;
 }
-#player-top { display: flex; gap: 12px; align-items: baseline; font-size: 13px; flex-wrap: wrap; }
+body.fx-depth #player-panel { margin-top: 22px; }
+#player-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  background: var(--panel);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  padding: 4px 14px;
+  box-shadow: 0 3px 10px rgba(74, 52, 38, 0.18);
+  max-width: 100%;
+}
 #player-top .opp-name { font-size: 15px; }
-#your-melds { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
-#hand { display: flex; flex-wrap: wrap; gap: 20px 4px; margin-top: 8px; padding-top: 18px; min-height: 80px; }
+#player-top #turn-order { display: none; }
+.you-chip { font-size: 11.5px; background: #f0e4cf; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+#player-top #your-flowers { display: inline-flex; margin-top: 0; }
+#your-melds { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; align-items: center; justify-content: center; }
+#your-melds:empty { display: none; }
+#hand { display: flex; flex-wrap: wrap; gap: 20px 4px; margin-top: 0; padding-top: 16px; min-height: 80px; justify-content: center; }
 
 /* ---------- Tiles (traditional ivory faces with SVG artwork) ---------- */
 .tile {
@@ -243,11 +429,14 @@ body.hide-corners .tile .corner { display: none; }
 }
 .tile.back.small { font-size: 11px; }
 .tile.back.mini { font-size: 9px; }
-.opp-hand .tile.back.mini { margin-right: -9px; }
+.opp-hand .tile.back.mini { margin-right: -12px; }
 .opp-hand .tile.back.mini:last-of-type { margin-right: 0; }
 
 .tile.clickable { cursor: pointer; transition: transform 0.08s; }
 .tile.clickable:hover { transform: translateY(-6px); }
+/* a11y: visible keyboard focus ring on discardable tiles */
+.tile:focus { outline: none; }
+.tile.clickable:focus-visible { outline: 3px solid var(--yarn); outline-offset: 2px; transform: translateY(-6px); }
 .tile.selected { transform: translateY(-10px); border-color: var(--accent); box-shadow: 0 4px 10px rgba(201, 107, 61, 0.5); }
 .tile.selected:hover { transform: translateY(-10px); }
 .tile.suggest { box-shadow: 0 0 0 3px #ffd65a, 0 0 14px 4px rgba(255, 214, 90, 0.8); }
@@ -273,17 +462,53 @@ body.hide-corners .tile .corner { display: none; }
 .inline-tile { display: inline-block; vertical-align: middle; margin: 0 1px; }
 .inline-tile .tile { display: inline-flex; }
 
-/* ---------- Coach ---------- */
+/* ---------- M6 · Professor Paws — floating advisor card ---------- */
 #coach {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+  width: min(310px, calc(100vw - 32px));
+  max-height: min(64vh, 560px);
+  overflow-y: auto;
   background: var(--panel);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 14px;
-  box-shadow: 0 2px 6px rgba(74, 52, 38, 0.12);
-  align-self: start;
-  position: sticky;
-  top: 12px;
+  box-shadow: 0 10px 30px rgba(40, 26, 14, 0.35), 0 0 0 1.5px #eee0c8;
 }
-#coach h3 { margin: 0 0 8px; font-size: 15px; }
+#coach h3 { margin: 0 0 8px; font-size: 15px; padding-right: 30px; }
+#coach-collapse {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: #f0e4cf;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+#coach-collapse:hover { background: var(--accent); color: #fff; }
+#coach.collapsed {
+  width: auto;
+  max-height: none;
+  overflow: visible;
+  padding: 8px;
+  border-radius: 50%;
+}
+#coach.collapsed > *:not(#coach-collapse) { display: none; }
+#coach.collapsed #coach-collapse {
+  position: static;
+  width: 46px;
+  height: 46px;
+  font-size: 24px;
+  background: var(--accent);
+}
 #coach-bubble { display: flex; gap: 10px; align-items: flex-start; }
 #coach-face { font-size: 34px; line-height: 1; }
 #coach-msg {
@@ -298,18 +523,21 @@ body.hide-corners .tile .corner { display: none; }
 }
 #hint-btn { width: 100%; margin-top: 10px; }
 
-/* ---------- Log ---------- */
-#log-wrap { grid-column: 1 / -1; }
-#log-wrap h3 { font-size: 13px; margin: 4px 0 6px; opacity: 0.7; }
+/* ---------- M6 · Game log — bottom strip ---------- */
+#log-wrap { display: flex; flex-direction: column; gap: 4px; }
+#log-wrap h3 { font-size: 12px; margin: 0; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.8px; }
 #log {
   background: var(--panel);
   border-radius: 12px;
-  padding: 10px 14px;
-  height: 130px;
+  padding: 8px 14px;
+  height: 96px;
   overflow-y: auto;
   font-size: 12.5px;
   line-height: 1.55;
+  /* keep clear of the floating Paws card */
+  margin-right: 330px;
 }
+body.paws-collapsed #log { margin-right: 66px; }
 .log-line { border-bottom: 1px dashed #eee0c8; padding: 2px 0; }
 .log-claim { color: var(--accent-dark); font-weight: 600; }
 .log-important { color: var(--ink); background: #f7edd8; border-radius: 6px; padding: 3px 6px; }
@@ -347,6 +575,32 @@ body.hide-corners .tile .corner { display: none; }
 .quiz-wrong { color: var(--bad); font-weight: 600; }
 .fan-list li { margin-bottom: 4px; }
 
+/* ---------- M7.6 · winning-path visualization (win modal) ----------
+   The completed hand is shown grouped into its four sets + the pair, each in
+   its own labelled cluster, so a player sees *why* the hand wins. */
+.win-groups { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; }
+.win-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 7px 4px;
+  background: #f4ead6;
+  border: 1.5px solid #e6d6b6;
+  border-radius: 10px;
+}
+.win-group-tiles { display: flex; gap: 3px; }
+.win-group-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #9b7c3c;
+}
+/* the pair (the last group) reads as the "eyes" — tint it distinctly */
+.win-group:last-child { background: #eef3e6; border-color: #cfe0bf; }
+.win-group:last-child .win-group-label { color: var(--good); }
+
 /* ---------- Party mode ---------- */
 .party-input {
   font-family: inherit;
@@ -377,6 +631,8 @@ body.hide-corners .tile .corner { display: none; }
 #gold-line {
   display: flex;
   align-items: center;
+  align-self: flex-start;
+  max-width: 100%;
   gap: 8px;
   font-size: 13px;
   color: #fff;
@@ -388,6 +644,7 @@ body.hide-corners .tile .corner { display: none; }
   margin-bottom: 8px;
 }
 #gold-line .gold-note { font-size: 12px; opacity: 0.95; }
+#gold-slot { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .opp-flowers, #your-flowers { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; min-height: 0; margin-top: 5px; }
 .flower-label {
   font-size: 11px;
@@ -488,8 +745,6 @@ body.hide-corners .tile .corner { display: none; }
 .ico-svg { width: 14px; height: 14px; }
 header button .ico, .toggle .ico { margin-right: 5px; }
 header button, .toggle { display: inline-flex; align-items: center; }
-.section-label { display: flex; align-items: center; gap: 6px; }
-.section-label .ico-svg { width: 13px; height: 13px; }
 #legend summary .ico-svg, #log-wrap h3 .ico-svg, #coach h3 .ico-svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
 #legend summary .ico, #log-wrap h3 .ico, #coach h3 .ico { vertical-align: -2px; }
 #hint-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
@@ -555,17 +810,155 @@ h1 .brand-slot svg { width: 26px; height: 29px; }
 .demo-btn { margin-top: 10px; }
 .tut-done { color: var(--good); font-weight: 700; }
 
-/* ---------- The Analyst ---------- */
-#sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-self: start;
-  position: sticky;
-  top: 12px;
+/* ============================================================
+   Revamp M0–M4 — motion & pseudo-3D (all gated by body.fx-*)
+   Nothing here applies until fx.js adds the fx-* classes, so the
+   game degrades gracefully to the flat board if JS is disabled.
+   ============================================================ */
+:root {
+  --ease-out-soft: cubic-bezier(.22, .61, .36, 1);
+  --ease-back: cubic-bezier(.34, 1.56, .64, 1);
+  --fx-fast: .12s; --fx-base: .22s; --fx-slow: .42s;
 }
-#coach { position: static; }
+#table { position: relative; }
 
+/* ---------- M2 · living tiles ---------- */
+body.fx-motion .tile.clickable { transition: transform var(--fx-base) var(--ease-out-soft), box-shadow var(--fx-base) ease; }
+body.fx-motion #hand .tile.clickable:hover {
+  transform: translateY(-12px) scale(1.045) rotate(-1deg);
+  box-shadow: 0 12px 22px rgba(74, 52, 38, 0.28);
+  z-index: 6;
+}
+body.fx-motion #hand .tile { animation: fx-breathe 4.2s ease-in-out infinite; }
+body.fx-motion #hand .tile:nth-child(3n)   { animation-delay: -1.2s; }
+body.fx-motion #hand .tile:nth-child(3n+1) { animation-delay: -2.6s; }
+body.fx-motion #hand .tile:nth-child(4n)   { animation-duration: 4.9s; }
+body.fx-motion #hand .tile.clickable:hover,
+body.fx-motion #hand .tile.selected,
+body.fx-motion #hand .tile.drawn { animation: none; }
+body.fx-motion #hand .tile.selected { transform: translateY(-11px) scale(1.04); }
+body.fx-motion #hand .tile.suggest { animation: fx-wiggle 1.15s ease-in-out infinite; }
+
+@keyframes fx-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.6px); } }
+@keyframes fx-wiggle { 0%, 100% { transform: translateY(-2px) rotate(0); } 25% { transform: translateY(-5px) rotate(-2.5deg); } 75% { transform: translateY(-5px) rotate(2.5deg); } }
+
+/* ---------- M3 · choreography ---------- */
+@keyframes fx-drop {
+  0%   { transform: translateY(-24px) scale(1.06); opacity: .15; }
+  55%  { transform: translateY(0) scaleY(.9) scaleX(1.06); opacity: 1; }
+  75%  { transform: scaleY(1.03) scaleX(.99); }
+  100% { transform: none; opacity: 1; }
+}
+body.fx-motion .river-cell .tile.fx-drop { animation: fx-drop var(--fx-slow) var(--ease-out-soft); }
+
+@keyframes fx-draw-in {
+  0%   { transform: translateX(28px) translateY(-10px) rotate(7deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+body.fx-motion #hand .tile.fx-draw-in { animation: fx-draw-in var(--fx-slow) var(--ease-out-soft); }
+
+@keyframes fx-gather { 0% { transform: scale(.68); opacity: .25; } 60% { transform: scale(1.08); } 100% { transform: none; opacity: 1; } }
+body.fx-motion .meld.fx-gather { animation: fx-gather var(--fx-slow) var(--ease-back); }
+
+/* camera + celebration (contained to the center well / hand) */
+@keyframes fx-turnpulse { 0% { transform: scale(1); } 42% { transform: scale(1.013); } 100% { transform: scale(1); } }
+body.fx-motion #center.fx-turn { animation: fx-turnpulse .62s var(--ease-out-soft); }
+@keyframes fx-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+body.fx-motion #center.fx-winshake { animation: fx-shake .6s ease-in-out; }
+@keyframes fx-winglow { 0%, 100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px #ffd65a, 0 0 32px 9px rgba(255, 214, 90, .8); } }
+body.fx-motion #hand.fx-winglow { animation: fx-winglow 1.4s ease-in-out; border-radius: 12px; }
+
+.fx-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+
+/* ---------- M4/M7 · the 3D table (static depth; survives reduced-motion)
+   M7 upgrade: "Full 3D" is now a true tilted-table scene — a perspective
+   camera over #table, physical tile thickness, standing opponent racks, and
+   the depleting wall laid out on the felt. Deliberately NO cursor parallax:
+   the board never moves with the mouse. CSS-only, gated on fx-depth, so
+   Subtle/Off (and any fallback) keep the flat board. */
+body.fx-depth {
+  background:
+    radial-gradient(120% 80% at 50% -5%, rgba(255, 240, 210, .8), transparent 55%),
+    linear-gradient(178deg, #eedcc0 0%, #dcc19e 50%, #c2a37c 100%);
+  background-attachment: fixed;
+}
+body.fx-depth #layout { perspective: 1500px; perspective-origin: 50% 10%; }
+body.fx-depth #table {
+  transform: rotateX(12deg);
+  transform-origin: 50% 78%;
+  transform-style: preserve-3d;
+}
+body.fx-depth #table .seat, body.fx-depth .opp-hand { transform-style: preserve-3d; }
+
+/* depth by role: opponents recede upstage; the active seat steps forward */
+body.fx-depth .seat {
+  --seat-z: -20px;
+  transform: translateZ(var(--seat-z)) scale(.985);
+  transition: transform var(--fx-slow) var(--ease-out-soft);
+}
+body.fx-depth .seat-top { --seat-z: -44px; }
+body.fx-depth .seat.active-turn { transform: translateZ(calc(var(--seat-z) + 16px)) scale(1); }
+
+/* the across player's hidden tiles stand up like a real held hand
+   (side players' tiles are rotated in-plane instead — see M7.3) */
+body.fx-depth .seat-top .opp-hand .tile.back.mini { transform: rotateX(-16deg); transform-origin: 50% 100%; }
+
+/* the felt: wood bevel, lamp light, floating drop shadow */
+body.fx-depth #center {
+  border-color: transparent;
+  background:
+    radial-gradient(105% 85% at 50% 32%, rgba(255, 246, 214, .5), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(180deg, var(--felt) 0%, var(--felt-dark) 100%);
+  box-shadow:
+    inset 0 2px 14px rgba(0, 0, 0, 0.22),
+    0 0 0 6px #6b4f34,
+    0 0 0 10px #8a6a45,
+    0 1px 0 11px #5d4128,
+    0 40px 60px -20px rgba(40, 26, 14, .6);
+}
+body.fx-depth #center, body.fx-depth #player-panel { position: relative; z-index: 1; }
+
+/* ---------- M7 · physical tile thickness ----------
+   The 5px green border-bottom (the "back peeking out") already reads as the
+   start of the tile's side; two darker extrusion steps + a contact shadow
+   finish the illusion. State glows (gold/selected/suggest/last-discard)
+   compose their halo ON TOP of the thickness so nothing goes flat. */
+body.fx-depth .tile       { box-shadow: 0 2px 0 #93ae8a, 0 4px 0 #7c9674, 0 9px 7px rgba(30, 20, 10, .30); }
+body.fx-depth .tile.small { box-shadow: 0 1.5px 0 #93ae8a, 0 3px 0 #7c9674, 0 7px 6px rgba(30, 20, 10, .28); }
+body.fx-depth .tile.mini  { box-shadow: 0 1px 0 #93ae8a, 0 2px 0 #7c9674, 0 4px 4px rgba(30, 20, 10, .26); }
+body.fx-depth .tile.back       { box-shadow: 0 2px 0 #35502f, 0 4px 0 #2b4226, 0 9px 7px rgba(30, 20, 10, .34); }
+body.fx-depth .tile.back.small { box-shadow: 0 1.5px 0 #35502f, 0 3px 0 #2b4226, 0 7px 6px rgba(30, 20, 10, .30); }
+body.fx-depth .tile.back.mini  { box-shadow: 0 1px 0 #35502f, 0 2px 0 #2b4226, 0 4px 4px rgba(30, 20, 10, .28); }
+body.fx-depth .tile.gold {
+  box-shadow: 0 0 0 2px rgba(212, 160, 23, .55), 0 0 10px 2px rgba(255, 200, 60, .55),
+              0 2px 0 #b8891a, 0 4px 0 #9c7115, 0 9px 7px rgba(120, 80, 0, .30);
+}
+body.fx-depth .tile.gold.small {
+  box-shadow: 0 0 0 2px rgba(212, 160, 23, .55), 0 0 10px 2px rgba(255, 200, 60, .55),
+              0 1.5px 0 #b8891a, 0 3px 0 #9c7115, 0 7px 6px rgba(120, 80, 0, .28);
+}
+body.fx-depth .tile.selected {
+  box-shadow: 0 4px 10px rgba(201, 107, 61, .5),
+              0 2px 0 #93ae8a, 0 4px 0 #7c9674, 0 14px 12px rgba(30, 20, 10, .30);
+}
+body.fx-depth .tile.suggest {
+  box-shadow: 0 0 0 3px #ffd65a, 0 0 14px 4px rgba(255, 214, 90, .8),
+              0 2px 0 #93ae8a, 0 4px 0 #7c9674, 0 9px 7px rgba(30, 20, 10, .30);
+}
+body.fx-depth .tile.last-discard {
+  box-shadow: 0 0 0 3px #fff3d6, 0 0 12px 3px rgba(255, 243, 214, .9),
+              0 1.5px 0 #93ae8a, 0 3px 0 #7c9674, 0 7px 6px rgba(30, 20, 10, .28);
+}
+body.fx-depth.fx-motion #hand .tile.clickable:hover {
+  box-shadow: 0 2px 0 #93ae8a, 0 4px 0 #7c9674, 0 18px 26px rgba(74, 52, 38, .32);
+}
+
+/* ---------- M7 · the depleting wall, laid out on the felt (Full 3D only) --- */
+#wall-row { display: none; }
+body.fx-depth #wall-row { display: flex; justify-content: center; gap: 3px; margin-bottom: 8px; }
+body.fx-depth #wall-row .tile.mini { width: 18px; height: 26px; font-size: 8px; }
+
+/* ---------- The Analyst ---------- */
 /* "Show my full analysis" — the Analyst engine, folded into Paws' panel */
 #analysis { margin-top: 12px; border-top: 1px dashed #eee0c8; padding-top: 10px; }
 #analysis > summary {
@@ -704,4 +1097,79 @@ h1 .brand-slot svg { width: 26px; height: 29px; }
   border-radius: 8px;
   padding: 9px 12px;
   font-size: 13px;
+}
+
+/* ---------- M1/M3 · persistent tiles: FLIP, ghost flights, landings ---------- */
+/* CSS animations would override the FLIP inline transform — pause them in flight */
+body.fx-motion #hand .tile.fx-flip { animation: none; z-index: 5; will-change: transform; }
+.fx-ghost {
+  position: fixed;
+  z-index: 90;
+  margin: 0;
+  pointer-events: none;
+  transition: transform .38s cubic-bezier(.22, .61, .36, 1);
+  transform-origin: top left;
+  will-change: transform;
+  box-shadow: 0 14px 24px rgba(40, 26, 14, .35);
+}
+@keyframes fx-land {
+  0%   { transform: scaleY(.88) scaleX(1.07); }
+  60%  { transform: scaleY(1.04) scaleX(.98); }
+  100% { transform: none; }
+}
+body.fx-motion .tile.fx-land, body.fx-motion .meld.fx-land { animation: fx-land .3s cubic-bezier(.22,.61,.36,1); }
+
+/* ---------- M2 · cursor tilt (rides on the hover lift; full effects only) ---------- */
+body.fx-full.fx-motion #hand .tile.clickable:hover {
+  transform: perspective(620px) translateY(-12px) scale(1.045)
+             rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+
+/* ---------- M6 · narrow / mobile layout ----------
+   Chips form a single strip above the felt; the felt relaxes its square;
+   Paws stays a floating bubble but the log reclaims the full width. */
+@media (max-width: 900px) {
+  #table {
+    grid-template-areas:
+      "left top right"
+      "felt felt felt";
+    /* equal thirds — every seat gets the same proportions in the strip */
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  .seat-top { min-width: 0; justify-self: stretch; }
+  .seat-left, .seat-right { align-self: start; justify-self: center; }
+  /* narrow screens: seats sit in a strip above the felt, so side racks go
+     back to horizontal unrotated rows */
+  .seat-left .opp-hand, .seat-right .opp-hand { flex-direction: row; flex-wrap: wrap; }
+  .seat-left .opp-hand .tile.back.mini, .seat-right .opp-hand .tile.back.mini { transform: none; margin: 0 -12px 0 0; }
+  .seat-left .opp-hand .tile.back.mini:last-of-type, .seat-right .opp-hand .tile.back.mini:last-of-type { margin-right: 0; }
+  .seat-left .opp-hand .tile.small, .seat-right .opp-hand .tile.small { margin: 0; }
+  .seat-left .opp-hand .hand-count, .seat-right .opp-hand .hand-count { margin-top: 0; }
+  #center { width: 100%; aspect-ratio: auto; min-height: 280px; }
+  #hand { justify-content: flex-start; }
+  #log, body.paws-collapsed #log { margin-right: 0; height: 84px; }
+  #coach { max-height: 52vh; }
+  #player-top #turn-order { display: none; }
+  /* the Options popover anchors left on narrow screens so it stays on-screen */
+  .hud-pop { left: 0; right: auto; }
+  /* M7: flatten the 3D scene on small screens — tilt + wall cost too much
+     space and legibility there; tile thickness stays. */
+  body.fx-depth #table { transform: none; }
+  body.fx-depth #wall-row { display: none; }
+  body.fx-depth .opp-hand .tile.back.mini { transform: none; }
+}
+
+/* M7.5 · phones: shrink the hand tiles + gaps so the board and your hand
+   share the screen instead of forcing a long scroll between them. Only the
+   large hand tiles change; small/mini (opponents, river) keep their sizes. */
+@media (max-width: 560px) {
+  #layout { padding: 8px 10px 12px; gap: 8px; }
+  .tile { width: 44px; height: 62px; border-bottom-width: 4px; }
+  .tile .corner { font-size: 9px; }
+  #hand { gap: 12px 3px; padding-top: 15px; margin-top: 0; }
+  #center { min-height: 220px; padding: 10px; }
+  #player-panel { margin-top: 10px; }
+  body.fx-depth #player-panel { margin-top: 12px; }
+  #log, body.paws-collapsed #log { height: 72px; }
 }

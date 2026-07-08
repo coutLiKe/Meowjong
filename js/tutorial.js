@@ -48,8 +48,8 @@ const LESSONS = [
       <p>There are three suits, each numbered 1–9 with four copies of every tile.
       First suit: <b>Dots</b> — just count the circles.</p>
       ${tilesHTML([0, 1, 2, 3, 4, 5, 6, 7, 8])}
-      <p>The tiny corner number helps while you learn (you can turn it off later with the
-      <b>Labels</b> toggle).</p>`,
+      <p>The tiny corner number helps while you learn (you can turn it off later under
+      <b>Options → Tile corner labels</b> in the top bar).</p>`,
     why: "Reading tiles instantly is 90% of feeling comfortable at a real table.",
     task: {
       type: "choice",
