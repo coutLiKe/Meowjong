@@ -4,119 +4,146 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Meowjong — Learn &amp; Play FJ Mahjong</title>
-  <link rel="stylesheet" href="css/style.css?v=p4" />
+  <link rel="stylesheet" href="css/style.css?v=p12" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Crect x='3' y='3' width='58' height='66' rx='12' fill='%23fffdf4' stroke='%23c9b993' stroke-width='4'/%3E%3Cpath d='M6 52 h52 v8 a10 10 0 0 1 -10 10 h-32 a10 10 0 0 1 -10 -10 z' fill='%237fa877'/%3E%3Ccircle cx='32' cy='31' r='16' fill='none' stroke='%231e7a3c' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='8.5' fill='none' stroke='%23b3232a' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='3' fill='%23b3232a'/%3E%3C/svg%3E" />
 </head>
 <body>
-  <header>
-    <h1><span class="brand-slot brand-sm"></span> Meowjong</h1>
-    <span class="subtitle">FJ mahjong — learn &amp; play</span>
-    <button id="btn-menu"><span class="ico" data-icon="home"></span>Menu</button>
-    <button id="btn-tutorial"><span class="ico" data-icon="book-open"></span>Tutorial</button>
-    <button id="btn-strategy"><span class="ico" data-icon="target"></span>Strategy</button>
-    <button id="btn-party"><span class="ico" data-icon="users"></span>Party</button>
-    <button id="btn-newhand"><span class="ico" data-icon="refresh"></span>Re-deal</button>
-    <label class="toggle" title="Show the cats' hands face-up while you learn (single-player only)">
-      <input type="checkbox" id="toggle-peek" /> <span class="ico" data-icon="eye"></span>Peek
-    </label>
-    <label class="toggle" title="Small corner numbers/letters on every tile while you learn to read the faces">
-      <input type="checkbox" id="toggle-labels" checked /> <span class="ico" data-icon="type"></span>Labels
-    </label>
-    <label class="toggle" title="Professor Paws comments automatically as you play">
-      <input type="checkbox" id="toggle-coach" checked /> <span class="ico" data-icon="graduation-cap"></span>Auto-coach
-    </label>
+  <!-- M6/M7.1 · Top HUD bar, decluttered: brand · round/wall status · learn tabs ·
+       an ⚙ Options popover (peek/labels/coach/fx) · party/re-deal/menu -->
+  <header id="hud">
+    <div class="hud-brand">
+      <h1><span class="brand-slot brand-sm"></span> Meowjong</h1>
+    </div>
+    <div class="hud-status">
+      <span class="hud-chip"><span class="ico" data-icon="refresh"></span><span id="round-label">Hand 1</span></span>
+      <span class="hud-chip hud-wall" title="Tiles left to draw from the wall">
+        <span class="ico" data-icon="grid"></span>Wall <b id="wall-count">–</b>
+        <span class="wall-bar"><i id="wall-fill"></i></span>
+      </span>
+    </div>
+    <nav class="hud-tabs">
+      <button id="btn-tutorial"><span class="ico" data-icon="book-open"></span>Tutorial</button>
+      <button id="btn-strategy"><span class="ico" data-icon="target"></span>Strategy</button>
+    </nav>
+    <div class="hud-tools">
+      <details id="hud-settings">
+        <summary title="Learning &amp; visual options"><span class="ico" data-icon="sliders"></span>Options</summary>
+        <div class="hud-pop">
+          <label class="toggle" title="Show the cats' hands face-up while you learn (single-player only)">
+            <input type="checkbox" id="toggle-peek" /> <span class="ico" data-icon="eye"></span>Peek at cats' hands
+          </label>
+          <label class="toggle" title="Small corner numbers/letters on every tile while you learn to read the faces">
+            <input type="checkbox" id="toggle-labels" checked /> <span class="ico" data-icon="type"></span>Tile corner labels
+          </label>
+          <label class="toggle" title="Professor Paws comments automatically as you play">
+            <input type="checkbox" id="toggle-coach" checked /> <span class="ico" data-icon="graduation-cap"></span>Auto coach
+          </label>
+          <label class="toggle" title="Visual effects: Full 3D table + motion, Subtle motion only, or Off">
+            <span class="ico" data-icon="eye"></span>Effects
+            <select id="fx-level" aria-label="Visual effects level">
+              <option value="full">Full 3D</option>
+              <option value="subtle">Subtle</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+        </div>
+      </details>
+      <button id="btn-party"><span class="ico" data-icon="users"></span>Party</button>
+      <button id="btn-newhand"><span class="ico" data-icon="refresh"></span>Re-deal</button>
+      <button id="btn-menu"><span class="ico" data-icon="home"></span>Menu</button>
+    </div>
   </header>
 
   <div id="layout">
+    <!-- M6 · Stage: three-sided seating around a square felt table.
+         Turn order is You → 1 → 2 → 3, so seat 1 sits to your right,
+         seat 2 across, seat 3 to your left (you Chi from seat 3). -->
     <div id="table">
-      <div class="section-label"><span class="ico" data-icon="users"></span> The other players — their tiles are hidden</div>
-      <section id="opponents">
-        <div class="opp" id="opp-3">
-          <div class="opp-top">
-            <span class="opp-name"></span>
-            <span class="opp-wind"></span>
-            <span class="opp-score"></span>
-          </div>
-          <div class="opp-sub">plays before you — you can Chi from them!</div>
-          <div class="opp-hand"></div>
-          <div class="opp-flowers"></div>
-          <div class="opp-melds"></div>
+      <section class="seat seat-top opp" id="opp-2" title="Sits across the table">
+        <div class="opp-top">
+          <span class="opp-name"></span>
+          <span class="opp-wind"></span>
+          <span class="opp-score"></span>
         </div>
-        <div class="opp" id="opp-2">
-          <div class="opp-top">
-            <span class="opp-name"></span>
-            <span class="opp-wind"></span>
-            <span class="opp-score"></span>
-          </div>
-          <div class="opp-sub">sits across the table</div>
-          <div class="opp-hand"></div>
-          <div class="opp-flowers"></div>
-          <div class="opp-melds"></div>
-        </div>
-        <div class="opp" id="opp-1">
-          <div class="opp-top">
-            <span class="opp-name"></span>
-            <span class="opp-wind"></span>
-            <span class="opp-score"></span>
-          </div>
-          <div class="opp-sub">plays right after you</div>
-          <div class="opp-hand"></div>
-          <div class="opp-flowers"></div>
-          <div class="opp-melds"></div>
-        </div>
+        <div class="opp-hand"></div>
+        <div class="opp-flowers"></div>
+        <div class="opp-melds"></div>
       </section>
 
-      <div class="section-label"><span class="ico" data-icon="grid"></span> The table — draw pile ("wall") and discard pile</div>
-      <section id="center">
-        <div id="status-line">
-          <span>Wall: <b id="wall-count">–</b> tiles left to draw</span>
-          <span id="round-label">Hand 1</span>
-          <span>Your points: <b id="your-score">–</b></span>
+      <section class="seat seat-left opp" id="opp-3" title="Plays before you — you can Chi from them!">
+        <div class="opp-top">
+          <span class="opp-name"></span>
+          <span class="opp-wind"></span>
+          <span class="opp-score"></span>
         </div>
+        <div class="opp-hand"></div>
+        <div class="opp-flowers"></div>
+        <div class="opp-melds"></div>
+      </section>
+
+      <section class="seat seat-right opp" id="opp-1" title="Plays right after you">
+        <div class="opp-top">
+          <span class="opp-name"></span>
+          <span class="opp-wind"></span>
+          <span class="opp-score"></span>
+        </div>
+        <div class="opp-hand"></div>
+        <div class="opp-flowers"></div>
+        <div class="opp-melds"></div>
+      </section>
+
+      <!-- The square felt table: wall + gold marker + discard river -->
+      <section id="center">
+        <div id="wall-row" aria-hidden="true"></div>
         <div id="gold-line">🥇 <b>GOLD (wild):</b> <span id="gold-slot"></span></div>
-        <div class="river-label">Discard pile:</div>
+        <div class="river-label">Discard pile — the newest tile glows:</div>
         <div id="river"></div>
+      </section>
+    </div>
+
+    <!-- M6 · Your hand, docked large at the bottom, with the action dock -->
+    <section id="player-panel">
+      <div id="player-top">
+        <span class="opp-name">You</span>
+        <span class="you-chip" id="your-wind"></span>
+        <span class="you-chip"><b id="your-score">–</b></span>
+        <span id="your-flowers"></span>
+        <span class="opp-sub" id="turn-order"></span>
+      </div>
+      <div id="your-melds"></div>
+      <div id="hand"></div>
+      <div id="dock">
         <div id="prompt"></div>
         <div id="actions"></div>
-      </section>
+      </div>
+    </section>
 
-      <div class="section-label"><span class="ico" data-icon="layers"></span> Your hand — 13 tiles (a 14th appears when you draw; then you discard one)</div>
-      <section id="player-panel">
-        <div id="player-top">
-          <span class="opp-name">You</span>
-          <span class="opp-sub" id="turn-order"></span>
-        </div>
-        <div id="your-flowers"></div>
-        <div id="your-melds"></div>
-        <div id="hand"></div>
-      </section>
-
-      <details id="legend" open>
-        <summary><span class="ico" data-icon="search"></span> Tile guide — what am I looking at?</summary>
-        <div id="legend-body"></div>
-      </details>
-    </div>
-
-    <div id="sidebar">
-      <aside id="coach">
-        <h3><span class="ico" data-icon="graduation-cap"></span> Professor Paws</h3>
-        <div id="coach-bubble">
-          <div id="coach-face">🐱</div>
-          <div id="coach-msg"></div>
-        </div>
-        <button id="hint-btn" class="action-btn primary"><span class="ico" data-icon="lightbulb"></span>Hint: what should I discard?</button>
-        <details id="analysis">
-          <summary><span class="ico" data-icon="chart"></span> Show my full analysis <span class="an-hint">every action, ranked</span></summary>
-          <div id="an-body"></div>
-        </details>
-      </aside>
-    </div>
-
+    <!-- M6 · Bottom strip: the narrated game log -->
     <div id="log-wrap">
-      <h3><span class="ico" data-icon="list"></span> Game log — everything that happens, narrated</h3>
+      <h3><span class="ico" data-icon="list"></span> Game log</h3>
       <div id="log"></div>
     </div>
+
+    <details id="legend">
+      <summary><span class="ico" data-icon="search"></span> Tile guide — what am I looking at?</summary>
+      <div id="legend-body"></div>
+    </details>
   </div>
+
+  <!-- M6 · Professor Paws: floating advisor card, bottom-right, collapsible -->
+  <aside id="coach">
+    <button id="coach-collapse" title="Collapse Professor Paws" aria-label="Collapse Professor Paws">—</button>
+    <h3><span class="ico" data-icon="graduation-cap"></span> Professor Paws</h3>
+    <div id="coach-bubble">
+      <div id="coach-face">🐱</div>
+      <div id="coach-msg"></div>
+    </div>
+    <button id="hint-btn" class="action-btn primary"><span class="ico" data-icon="lightbulb"></span>Hint: what should I discard?</button>
+    <details id="analysis">
+      <summary><span class="ico" data-icon="chart"></span> Show my full analysis <span class="an-hint">every action, ranked</span></summary>
+      <div id="an-body"></div>
+    </details>
+  </aside>
 
   <!-- Loading screen -->
   <div id="screen-loading">
@@ -153,15 +180,16 @@
 
   <!-- PeerJS is vendored (js/vendor/peerjs.min.js) and lazy-loaded on first Party use,
        so the boot path never depends on the network. -->
-  <script src="js/icons.js?v=p4"></script>
-  <script src="js/tiles.js?v=p4"></script>
-  <script src="js/faces.js?v=p4"></script>
-  <script src="js/engine.js?v=p4"></script>
-  <script src="js/ai.js?v=p4"></script>
-  <script src="js/net.js?v=p4"></script>
-  <script src="js/ui.js?v=p4"></script>
-  <script src="js/analyst.js?v=p4"></script>
-  <script src="js/tutorial.js?v=p4"></script>
-  <script src="js/main.js?v=p4"></script>
+  <script src="js/icons.js?v=p12"></script>
+  <script src="js/tiles.js?v=p12"></script>
+  <script src="js/faces.js?v=p12"></script>
+  <script src="js/engine.js?v=p12"></script>
+  <script src="js/ai.js?v=p12"></script>
+  <script src="js/net.js?v=p12"></script>
+  <script src="js/ui.js?v=p12"></script>
+  <script src="js/analyst.js?v=p12"></script>
+  <script src="js/tutorial.js?v=p12"></script>
+  <script src="js/fx.js?v=p12"></script>
+  <script src="js/main.js?v=p12"></script>
 </body>
 </html>

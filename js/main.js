@@ -250,6 +250,7 @@ function startHand() {
   replaceInitialFlowers();
   flipGold();
   renderAll();
+  if (typeof fxSyncRiver === "function") fxSyncRiver();
 
   if (G.autoCoach) coachSay(`A fresh hand! The gold is <b>${tileShort(wildOf())}</b> — its remaining copies are wild. Goal: <b>4 sets + 1 pair</b> (the pair must be natural tiles, no golds).`, "🥇");
 
@@ -374,6 +375,7 @@ async function takeTurn(seat, mode, gen) {
     }
   }
   renderAll();
+  if (mode !== "nodraw" && isInteractive(s) && typeof fxAfterDraw === "function") fxAfterDraw();
   return isInteractive(s) ? interactiveTurnLoop(seat, mode, gen) : aiTurnLoop(seat, mode, gen);
 }
 
@@ -459,6 +461,7 @@ function beginTurnPrompt(ctx, sink) {
     : "<b>Your turn!</b> Click a tile to select it, then click it again (or press Discard) to throw it.");
   refreshTurnActions();
   renderAll();
+  if (ctx.mode !== "nodraw" && typeof fxTurnStart === "function") fxTurnStart();
   if (typeof analystOnTurn === "function") analystOnTurn();
 }
 
@@ -572,6 +575,7 @@ function pushDiscard(seat, kind) {
   G.lastDiscard = { kind, seat };
   log(`${G.seats[seat].emoji} ${G.seats[seat].name} discards <b>${tileShort(kind)}</b> <span class="log-dim">(${tileName(kind)})</span>.`);
   renderAll();
+  if (typeof fxAfterDiscard === "function") fxAfterDiscard();
 }
 
 async function resolveClaims(discarder, kind, gen) {
@@ -725,6 +729,7 @@ function applyClaim(claim, discarder) {
   }
   log(`${s.emoji} <b>${s.name} claims ${(MELD_LABEL[claim.claimType] || claim.claimType).toUpperCase()}!</b> on ${tileShort(claim.kind)} from ${G.seats[discarder].name}.`, "log-claim");
   renderAll();
+  if (typeof fxAfterClaim === "function") fxAfterClaim(claim.seat);
   if (s.melds.length >= 3 && !s.threatWarned) {
     s.threatWarned = true;
     const flowerBit = s.flowers.length >= 3 ? ` They also have <b>${s.flowers.length} flowers</b>, so their win pays big.` : "";
@@ -852,6 +857,7 @@ async function doWin(seat, winTile, selfDraw, discarder, special = {}) {
   clearActions();
   setPrompt("");
   renderAll();
+  if (typeof fxWin === "function") fxWin(seat === 0);
 
   const howType = special.qiangJin ? "qiangjin" : (threeGold && !shapeWin) ? "threegold" : selfDraw ? "selfdraw" : "discard";
   // Structured, safe payload — shared by the host modal, the guest modal, and the log.
@@ -958,6 +964,7 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("error", e => reportFatal(e.error || e.message));
   window.addEventListener("unhandledrejection", e => reportFatal(e.reason));
   applyIcons();
+  if (typeof fxInit === "function") fxInit();
   if (typeof analystInit === "function") analystInit();
 
   $("#btn-menu").addEventListener("click", () => {
@@ -977,6 +984,11 @@ window.addEventListener("DOMContentLoaded", () => {
       { label: "Cancel", cls: "secondary", cb: hideModal },
     ]);
   });
+  // M7.1: the ⚙ Options popover closes when you click anywhere else
+  const hudSettings = $("#hud-settings");
+  if (hudSettings) document.addEventListener("click", e => {
+    if (hudSettings.open && !hudSettings.contains(e.target)) hudSettings.open = false;
+  });
   $("#toggle-peek").addEventListener("change", e => { G.peek = e.target.checked; renderAll(); });
   $("#toggle-labels").addEventListener("change", e => {
     document.body.classList.toggle("hide-corners", !e.target.checked);
@@ -984,6 +996,16 @@ window.addEventListener("DOMContentLoaded", () => {
   $("#toggle-coach").addEventListener("change", e => {
     G.autoCoach = e.target.checked;
     coachSay(G.autoCoach ? "I'm back! I'll comment as you play. 🐾" : "Going quiet — the Hint button still works if you need me. 🤫");
+  });
+  // M6: Professor Paws floats bottom-right and collapses to a chat-bubble tab
+  const coachCollapse = $("#coach-collapse");
+  if (coachCollapse) coachCollapse.addEventListener("click", () => {
+    const collapsed = $("#coach").classList.toggle("collapsed");
+    document.body.classList.toggle("paws-collapsed", collapsed);
+    coachCollapse.textContent = collapsed ? "🐱" : "—";
+    const label = collapsed ? "Open Professor Paws" : "Collapse Professor Paws";
+    coachCollapse.title = label;
+    coachCollapse.setAttribute("aria-label", label);
   });
   $("#modal-overlay").addEventListener("click", e => { if (e.target.id === "modal-overlay") hideModal(); });
 

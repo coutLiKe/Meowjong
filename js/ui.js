@@ -13,6 +13,12 @@ function cornerText(kind) {
   return DRAGONS[kind - 31].key;
 }
 
+/* SVG faces are pure functions of kind — parse once, reuse forever (revamp M1). */
+const FACE_CACHE = Object.create(null);
+function tileFace(kind) {
+  return FACE_CACHE[kind] || (FACE_CACHE[kind] = tileFaceSVG(kind));
+}
+
 /* Create a tile element. kind === null → face-down back.
    Uses <span> so tiles can live inside <p> text (a <div> would close the paragraph). */
 function tileEl(kind, opts = {}) {
@@ -31,7 +37,7 @@ function tileEl(kind, opts = {}) {
   if (opts.suggest) cls += " suggest";
   if (opts.last) cls += " last-discard";
   d.className = cls;
-  d.innerHTML = `<span class="corner">${cornerText(kind)}</span>` + tileFaceSVG(kind);
+  d.innerHTML = `<span class="corner">${cornerText(kind)}</span>` + tileFace(kind);
   d.title = tileName(kind);
   d.dataset.kind = kind;
   return d;
@@ -95,19 +101,41 @@ function renderFlowerRow(el, flowers) {
   for (const f of flowers) el.appendChild(tileEl(f, { mini: true, small: false }));
 }
 
+/* The discard river — INCREMENTAL renderer (revamp M1).
+   Within a hand the river only ever appends (a discard) or pops from the end
+   (a claim / ron), so existing cells keep their DOM identity: new tiles can
+   animate in and a claimed tile records its exit position for the gather
+   flight. Any deeper mismatch (re-deal, guest snapshot divergence) falls back
+   to a full rebuild — correctness always wins over motion. */
 function renderRiver() {
   const river = $("#river");
-  river.innerHTML = "";
   if (!G.river.length) {
     river.innerHTML = `<span class="river-empty">Discarded tiles pile up here. The newest one glows — that's the one you can claim.</span>`;
     return;
   }
-  for (let i = 0; i < G.river.length; i++) {
+  const emptyNote = river.querySelector(".river-empty");
+  if (emptyNote) river.innerHTML = "";
+
+  let cells = river.querySelectorAll(".river-cell");
+  // a claim/ron took the newest tile back off the pile
+  while (cells.length > G.river.length) {
+    const last = cells[cells.length - 1];
+    const t = last.querySelector(".tile");
+    if (t && typeof fxRecordExit === "function") fxRecordExit(Number(t.dataset.kind), t, "river");
+    last.remove();
+    cells = river.querySelectorAll(".river-cell");
+  }
+  // paranoia: if the retained prefix doesn't match state, rebuild from scratch
+  for (let i = 0; i < cells.length; i++) {
+    const t = cells[i].querySelector(".tile");
+    if (!t || Number(t.dataset.kind) !== G.river[i].kind) { river.innerHTML = ""; cells = river.querySelectorAll(".river-cell"); break; }
+  }
+  // append the new discards
+  for (let i = cells.length; i < G.river.length; i++) {
     const { kind, seat } = G.river[i];
     const cell = document.createElement("div");
     cell.className = "river-cell";
-    const t = tileEl(kind, { small: true, last: i === G.river.length - 1 && G.lastDiscard !== null });
-    cell.appendChild(t);
+    cell.appendChild(tileEl(kind, { small: true }));
     const badge = document.createElement("span");
     badge.className = "river-badge";
     badge.textContent = G.seats[seat].emoji;
@@ -115,14 +143,48 @@ function renderRiver() {
     cell.appendChild(badge);
     river.appendChild(cell);
   }
+  // the newest tile carries the claimable highlight
+  river.querySelectorAll(".tile.last-discard").forEach(t => t.classList.remove("last-discard"));
+  if (G.lastDiscard !== null) {
+    const lastT = river.querySelector(".river-cell:last-child .tile");
+    if (lastT) lastT.classList.add("last-discard");
+  }
   river.scrollTop = river.scrollHeight;
+}
+
+/* M7 · the wall laid out on the felt (visible in Full 3D only — CSS-gated).
+   ~22 face-down minis stand in for the whole wall and deplete with it, so the
+   end-of-hand tension is visible on the table, not just in the HUD number.
+   Reconciles by count, so mid-hand updates remove at most one tile. */
+function renderWallRow() {
+  const row = $("#wall-row");
+  if (!row) return;
+  const left = G.wall.length;
+  const max = Math.max(left, Number(row.dataset.max) || 0);
+  row.dataset.max = max;
+  const SEGMENTS = 22;
+  const want = max ? Math.ceil((SEGMENTS * left) / max) : 0;
+  while (row.children.length > want) row.lastChild.remove();
+  while (row.children.length < want) row.appendChild(tileEl(null, { mini: true }));
+  row.title = "The wall — " + left + " tiles left to draw";
 }
 
 function renderStatus() {
   $("#wall-count").textContent = G.wall.length;
   $("#round-label").textContent = "Hand " + G.handNumber;
+  // M6 HUD: depleting wall bar. Track the hand's full wall size as a
+  // high-water mark — a fresh deal always exceeds any mid-hand value.
+  const fill = $("#wall-fill");
+  if (fill) {
+    const max = Math.max(G.wall.length, Number(fill.dataset.max) || 0);
+    fill.dataset.max = max;
+    fill.style.width = (max ? Math.round((100 * G.wall.length) / max) : 0) + "%";
+  }
+  renderWallRow();
   const you = G.seats[0];
   $("#your-score").textContent = you.score + " pts";
+  const yw = $("#your-wind");
+  if (yw) yw.textContent = you.wind !== null && you.wind !== undefined ? "Wind: " + WINDS[you.wind].key : "";
   // the flipped gold (wild) tile
   const slot = $("#gold-slot");
   slot.innerHTML = "";
@@ -134,35 +196,89 @@ function renderStatus() {
     slot.appendChild(note);
   }
   renderFlowerRow($("#your-flowers"), you.flowers || []);
-  // turn-order line reflects actual seat names (party mode changes them)
+  // turn-order reflects actual seat names (party mode changes them).
+  // M7.2: shown as a tooltip on the "You" pill — the inline line was clutter.
   const order = $("#turn-order");
   if (order) {
-    order.textContent = "turn order: You → " +
+    const txt = "turn order: You → " +
       [1, 2, 3].map(i => G.seats[i].emoji + " " + G.seats[i].name).join(" → ") + " → back to you…";
+    order.textContent = txt;
+    const pill = $("#player-top");
+    if (pill) pill.title = txt;
   }
 }
 
+/* Your hand — PERSISTENT, KEYED renderer (revamp M1, the keystone).
+   Instead of clearing and rebuilding, existing tile nodes are matched to the
+   new state by kind and moved/updated in place. That gives every tile a stable
+   DOM identity across renders, which is what makes motion possible:
+   - retained tiles FLIP-animate to their new slots (hand closes gaps smoothly)
+   - removed tiles register their last screen position (fxRecordExit) so the
+     discard/claim choreography can fly a ghost from where the tile really was
+   - entering tiles get a draw-in entrance.
+   Game logic is untouched: this renders the same state, just without amnesia. */
 function renderHand() {
   const you = G.seats[0];
   const handRow = $("#hand");
-  handRow.innerHTML = "";
   const canClick = G.awaitingDiscard;
   const suggestKind = G.suggestKind;
-  const addTile = (k, isDrawn) => {
-    const el = tileEl(k, {
-      selected: G.selectedIdx === handRow.children.length,
-      suggest: suggestKind !== null && k === suggestKind,
+
+  // one-time click delegation (replaces per-node listeners, survives reconciliation)
+  if (!handRow._delegated) {
+    handRow._delegated = true;
+    handRow.addEventListener("click", e => {
+      const t = e.target.closest ? e.target.closest(".tile") : null;
+      if (!t || !handRow.contains(t) || !t.classList.contains("clickable")) return;
+      const idx = Array.prototype.indexOf.call(handRow.children, t);
+      onHandTileClick(idx, Number(t.dataset.kind));
     });
-    if (isDrawn) el.classList.add("drawn");
-    if (canClick) {
-      el.classList.add("clickable");
-      const idx = handRow.children.length;
-      el.addEventListener("click", () => onHandTileClick(idx, k));
-    }
-    handRow.appendChild(el);
-  };
-  for (const k of you.hand) addTile(k, false);
-  if (you.drawn !== null && you.drawn !== undefined) addTile(you.drawn, true);
+  }
+
+  // the tiles the state says we should show, in order
+  const desired = you.hand.map(k => ({ kind: k, drawn: false }));
+  if (you.drawn !== null && you.drawn !== undefined) desired.push({ kind: you.drawn, drawn: true });
+
+  const existing = Array.prototype.filter.call(handRow.children,
+    el => el.classList && el.classList.contains("tile"));
+
+  // FLIP step 1: remember where every current tile is on screen
+  const flip = typeof fxFlipEnabled === "function" && fxFlipEnabled() && existing.length > 0;
+  const firstRects = flip ? new Map(existing.map(el => [el, el.getBoundingClientRect()])) : null;
+
+  // match state→nodes by kind (prefer an exact drawn-flag match so the fresh
+  // draw keeps its identity when it later merges into the sorted hand)
+  const pool = existing.slice();
+  const nodes = desired.map(d => {
+    let i = pool.findIndex(el => Number(el.dataset.kind) === d.kind && el.classList.contains("drawn") === d.drawn);
+    if (i < 0) i = pool.findIndex(el => Number(el.dataset.kind) === d.kind);
+    if (i >= 0) return pool.splice(i, 1)[0];
+    const el = tileEl(d.kind, {});
+    el.dataset.enter = "1";
+    return el;
+  });
+
+  // leftovers left the hand (discard/kong/claim material): record their last
+  // position for flight animations, then drop the nodes
+  for (const el of pool) {
+    if (typeof fxRecordExit === "function") fxRecordExit(Number(el.dataset.kind), el, "hand");
+    el.remove();
+  }
+
+  // reorder / insert, and refresh state classes in place
+  nodes.forEach((el, idx) => {
+    if (handRow.children[idx] !== el) handRow.insertBefore(el, handRow.children[idx] || null);
+    const d = desired[idx];
+    el.classList.toggle("drawn", d.drawn);
+    el.classList.toggle("clickable", canClick);
+    el.classList.toggle("selected", G.selectedIdx === idx);
+    el.classList.toggle("suggest", suggestKind !== null && d.kind === suggestKind);
+    el.classList.toggle("gold", G.wildKind !== null && G.wildKind !== undefined && d.kind === G.wildKind);
+  });
+  // anything after the tiles that isn't ours (defensive)
+  while (handRow.children.length > nodes.length) handRow.lastChild.remove();
+
+  // FLIP steps 2–4: measure new positions, invert, play
+  if (flip && typeof fxFlipPlay === "function") fxFlipPlay(nodes, firstRects);
 
   const meldRow = $("#your-melds");
   meldRow.innerHTML = "";
