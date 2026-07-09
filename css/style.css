@@ -76,7 +76,10 @@ header h1 { font-size: 20px; margin: 0; letter-spacing: 0.5px; }
   transition: width 0.4s ease;
 }
 .hud-tabs { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-.hud-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* M7.5.1: positioned here (not on #hud-settings) so the Options popover anchors
+   to the whole button group's right edge — stable even when the header wraps
+   at in-between widths and #hud-settings itself ends up away from the edge. */
+.hud-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; position: relative; }
 header button, .toggle {
   font-family: inherit;
   font-size: 13px;
@@ -101,7 +104,7 @@ header button:hover { background: var(--accent-dark); }
 }
 
 /* M7.1 · the ⚙ Options popover — peek/labels/coach/fx moved off the bar */
-#hud-settings { position: relative; }
+#hud-settings { position: static; }
 #hud-settings > summary {
   list-style: none;
   display: inline-flex;
@@ -132,6 +135,7 @@ header button:hover { background: var(--accent-dark); }
 }
 .hud-pop .toggle { justify-content: flex-start; white-space: nowrap; }
 .hud-pop .toggle select { margin-left: auto; }
+.hud-pop .toggle input[type="range"] { margin-left: auto; width: 76px; accent-color: var(--accent); }
 
 /* ---------- M6 · Stage layout ---------- */
 #layout {
@@ -432,7 +436,8 @@ body.hide-corners .tile .corner { display: none; }
 .opp-hand .tile.back.mini { margin-right: -12px; }
 .opp-hand .tile.back.mini:last-of-type { margin-right: 0; }
 
-.tile.clickable { cursor: pointer; transition: transform 0.08s; }
+.tile.clickable { cursor: grab; transition: transform 0.08s; }
+.tile.clickable:active { cursor: grabbing; }
 .tile.clickable:hover { transform: translateY(-6px); }
 /* a11y: visible keyboard focus ring on discardable tiles */
 .tile:focus { outline: none; }
@@ -869,6 +874,61 @@ body.fx-motion #center.fx-winshake { animation: fx-shake .6s ease-in-out; }
 body.fx-motion #hand.fx-winglow { animation: fx-winglow 1.4s ease-in-out; border-radius: 12px; }
 
 .fx-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+
+/* ============================================================
+   M9 · polish — toasts, meld sparks, log-line fade-in
+   (JS gates the toast/spark on the motion setting; the log fade is
+   scoped to body.fx-motion so Off/Subtle stays instant.)
+   ============================================================ */
+
+/* board-edge toast: slides down from the top, holds, fades out */
+.fx-toast {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  z-index: 70;
+  max-width: min(88vw, 460px);
+  padding: 9px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-16px);
+  transition: transform .32s var(--ease-back), opacity .32s ease;
+  box-shadow: 0 10px 26px rgba(40, 26, 14, .4);
+}
+.fx-toast-ready  { background: linear-gradient(160deg, #4f9d5a, #3c8248); }
+.fx-toast-danger { background: linear-gradient(160deg, #d9584e, #b83b32); }
+.fx-toast-info   { background: linear-gradient(160deg, #6b5240, #55402f); }
+.fx-toast-in  { opacity: 1; transform: translateX(-50%) translateY(0); }
+.fx-toast-out { opacity: 0; transform: translateX(-50%) translateY(-10px); transition: opacity .45s ease, transform .45s ease; }
+
+/* meld spark: a dot that flies out from the meld and fades */
+.fx-spark {
+  position: fixed;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: #ffd65a;
+  box-shadow: 0 0 6px 1px rgba(255, 214, 90, .8);
+  pointer-events: none;
+  z-index: 80;
+  transition: transform .45s cubic-bezier(.22,.61,.36,1), opacity .45s ease;
+}
+
+/* new log lines gently fade + slide in (motion levels only) */
+@keyframes fx-logline { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+body.fx-motion #log .log-line { animation: fx-logline .28s var(--ease-out-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-toast { transition: opacity .2s ease; transform: translateX(-50%); }
+  .fx-toast-in { transform: translateX(-50%); }
+  body.fx-motion #log .log-line { animation: none; }
+}
 
 /* ---------- M4/M7 · the 3D table (static depth; survives reduced-motion)
    M7 upgrade: "Full 3D" is now a true tilted-table scene — a perspective

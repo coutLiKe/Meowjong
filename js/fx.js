@@ -174,7 +174,10 @@ function fxAfterDiscard() {
   const cells = river.querySelectorAll(".river-cell");
   const grew = cells.length > FX._riverLen;
   FX._riverLen = cells.length;
-  if (!grew || !fxMotion()) return;
+  if (!grew) return;
+  // sound is a separate opt-in from visual motion, so it plays even at fx-off
+  if (typeof sndDiscard === "function") sndDiscard();
+  if (!fxMotion()) return;
   const tile = cells[cells.length - 1] && cells[cells.length - 1].querySelector(".tile");
   if (!tile) return;
   const kind = Number(tile.dataset.kind);
@@ -199,6 +202,7 @@ function fxSyncRiver() {
 /* ---------- draw: the freshly drawn tile slides into the hand ---------- */
 
 function fxAfterDraw() {
+  if (typeof sndDraw === "function") sndDraw();
   if (!fxMotion()) return;
   const drawn = $fx("#hand .tile.drawn");
   fxPulse(drawn, "fx-draw-in", 420);
@@ -207,13 +211,14 @@ function fxAfterDraw() {
 /* ---------- claim: the claimed tile flies from the river into the meld ---------- */
 
 function fxAfterClaim(seat) {
-  if (!fxMotion()) return;
   const sel = seat === 0 ? "#your-melds .meld:last-child" : `#opp-${seat} .opp-melds .meld:last-child`;
   const meld = $fx(sel);
-  if (!meld) return;
+  if (meld && typeof sndClaim === "function") sndClaim(meld.children.length);
+  if (!fxMotion() || !meld) return;
   const exit = fxTakeExit(null, "river");   // renderRiver recorded the popped tile
   if (exit) fxFly(exit.rect, meld, exit.kind, true);
   fxPulse(meld, "fx-gather", 520);
+  setTimeout(() => fxSpark(meld), 360);     // M9: a little spark as it locks in
 }
 
 /* ---------- hover: tiles tilt toward the cursor (full effects only) ---------- */
@@ -248,7 +253,8 @@ function fxTurnStart() {
 
 /* ---------- win: glow + brief shake + optional confetti ---------- */
 
-function fxWin(youWin) {
+function fxWin(youWin, special) {
+  if (typeof sndWin === "function") sndWin(youWin, special);
   const center = document.getElementById("center");
   if (fxMotion()) fxPulse(center, "fx-winshake", 700);
   const hand = document.getElementById("hand");
@@ -295,4 +301,65 @@ function fxConfetti() {
     if (life < 1600) fxReq(frame); else cv.remove();
   }
   fxReq(frame);
+}
+
+/* ============================================================
+   M9 · polish pass — count-up scores, board toasts, meld sparks.
+   All presentation-only and motion-gated; each is a no-op (or an
+   instant value set) when motion is off or the OS asks for reduced
+   motion, so nothing here changes what the game communicates.
+   ============================================================ */
+
+/* ---------- count-up: a changed score ticks to its new value ---------- */
+function fxCountUp(el, value, suffix = "") {
+  if (!el) return;
+  const prev = (el._scoreVal !== undefined) ? el._scoreVal : value;
+  el._scoreVal = value;
+  if (!fxMotion() || FX.reduced || prev === value) { el.textContent = value + suffix; return; }
+  const token = (el._scoreTok = (el._scoreTok || 0) + 1);
+  const t0 = performance.now(), dur = 650, from = prev, delta = value - from;
+  function step(t) {
+    if (el._scoreTok !== token) return;              // superseded by a newer change
+    const p = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);                // ease-out cubic
+    el.textContent = Math.round(from + delta * e) + suffix;
+    if (p < 1) fxReq(step); else el.textContent = value + suffix;
+  }
+  fxReq(step);
+}
+
+/* ---------- toast: a brief banner at the top of the board ----------
+   For flair only (the coach + log already carry the same info), so it
+   stays quiet when motion is off. kind: "ready" | "danger" | "info". */
+function fxToast(text, kind) {
+  if (!fxMotion()) return;
+  const t = document.createElement("div");
+  t.className = "fx-toast fx-toast-" + (kind || "info");
+  t.textContent = text;
+  t.setAttribute("role", "status");
+  document.body.appendChild(t);
+  void t.offsetWidth;                                 // reflow → play the enter
+  t.classList.add("fx-toast-in");
+  setTimeout(() => { t.classList.remove("fx-toast-in"); t.classList.add("fx-toast-out"); }, 2400);
+  setTimeout(() => t.remove(), 2900);
+}
+
+/* ---------- spark: a small burst when a meld locks in ---------- */
+function fxSpark(el) {
+  if (!fxMotion() || FX.reduced || !el || typeof el.getBoundingClientRect !== "function") return;
+  const r = el.getBoundingClientRect();
+  if (!r.width) return;
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2, N = 8;
+  for (let i = 0; i < N; i++) {
+    const s = document.createElement("span");
+    s.className = "fx-spark";
+    s.style.left = cx + "px"; s.style.top = cy + "px";
+    document.body.appendChild(s);
+    const ang = (Math.PI * 2 * i) / N + Math.random() * 0.5;
+    const dist = 16 + Math.random() * 16;
+    void s.offsetWidth;
+    s.style.transform = `translate(${(Math.cos(ang) * dist).toFixed(1)}px, ${(Math.sin(ang) * dist).toFixed(1)}px) scale(.3)`;
+    s.style.opacity = "0";
+    setTimeout(() => s.remove(), 480);
+  }
 }
