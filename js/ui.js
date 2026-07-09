@@ -65,7 +65,9 @@ function renderOpponents() {
     const s = G.seats[i];
     const panel = $("#opp-" + i);
     panel.querySelector(".opp-name").textContent = s.emoji + " " + s.name;
-    panel.querySelector(".opp-score").textContent = s.score + " pts";
+    const oppScore = panel.querySelector(".opp-score");
+    if (typeof fxCountUp === "function") fxCountUp(oppScore, s.score, " pts");
+    else oppScore.textContent = s.score + " pts";
     panel.querySelector(".opp-wind").textContent = "Wind: " + WINDS[s.wind].key;
     panel.classList.toggle("active-turn", G.activeSeat === i);
     const handRow = panel.querySelector(".opp-hand");
@@ -186,7 +188,9 @@ function renderStatus() {
   }
   renderWallRow();
   const you = G.seats[0];
-  $("#your-score").textContent = you.score + " pts";
+  const yourScore = $("#your-score");
+  if (typeof fxCountUp === "function") fxCountUp(yourScore, you.score, " pts");
+  else yourScore.textContent = you.score + " pts";
   const yw = $("#your-wind");
   if (yw) yw.textContent = you.wind !== null && you.wind !== undefined ? "Wind: " + WINDS[you.wind].key : "";
   // the flipped gold (wild) tile

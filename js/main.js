@@ -432,8 +432,14 @@ async function interactiveTurnLoop(seatIdx, mode, gen) {
         let msg = `😻 <b>You're ready (tenpai)!</b> You win the moment anyone discards — or you draw — one of: ${parts.join(", ")}`;
         if (waits.every(k => liveCount(k, seatIdx) === 0)) msg += `<br>⚠️ …though every copy is already visible. That wait is <b>dead</b> — reshape next turn!`;
         coachFor(seatIdx, msg, "😻");
-        // sound: a subtle ping the FIRST time this hand you reach tenpai (not every turn you stay there)
-        if (!s.tenpaiSounded && typeof sndTenpai === "function") { sndTenpai(); s.tenpaiSounded = true; }
+        // FIRST time this hand you reach tenpai (not every turn you stay there):
+        // a subtle ping plus a board toast for the local player (M8 + M9).
+        if (!s.tenpaiSounded) {
+          s.tenpaiSounded = true;
+          if (typeof sndTenpai === "function") sndTenpai();
+          if (typeof fxToast === "function" && typeof isSoloMatch === "function" && isSoloMatch() && seatIdx === 0)
+            fxToast("😻 You're ready — tenpai!", "ready");
+        }
       } else {
         s.tenpaiSounded = false;   // fell out of tenpai — the ping can fire again if you get back there
       }
@@ -742,6 +748,8 @@ function applyClaim(claim, discarder) {
     for (let i = 0; i < 4; i++) {
       if (i !== claim.seat && isInteractive(G.seats[i])) coachFor(i, warning, "🙀");
     }
+    if (typeof fxToast === "function" && typeof isSoloMatch === "function" && isSoloMatch())
+      fxToast(`🚨 Defense time — ${s.name} is close to winning`, "danger");
   }
 }
 
