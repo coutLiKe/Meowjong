@@ -154,6 +154,21 @@ function sndClick() {
   sndTone(500, 0.035, "square", 0.05);
 }
 
+/* ---------- M10 · win-ceremony voices ---------- */
+
+/* One rising tick per scoring line as it pops in — the pitch climbs with the
+   line index so a long fan list reads as a crescendo. */
+function sndScoreTick(i) {
+  sndTone(620 + Math.min(i, 8) * 85, 0.07, "triangle", 0.1);
+}
+
+/* The total lands: a felt thump plus a bright rising fifth. */
+function sndScoreTotal() {
+  sndClack(0.09, 700, 0.34);
+  sndTone(1046.5, 0.3, "sine", 0.12, 0.03);
+  sndTone(1568, 0.25, "sine", 0.08, 0.09);
+}
+
 /* Quiet feedback tick on chrome/menu buttons and toggles — not on the in-game
    action buttons (Discard/Chi/Peng/Kong/Hú), which already get a contextual
    sound moments later once the resulting state change resolves. */

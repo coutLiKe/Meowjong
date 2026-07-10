@@ -606,6 +606,31 @@ body.paws-collapsed #log { margin-right: 66px; }
 .win-group:last-child { background: #eef3e6; border-color: #cfe0bf; }
 .win-group:last-child .win-group-label { color: var(--good); }
 
+/* ---------- M10 · win ceremony (staged scoring reveal) ----------
+   fx.js hides the modal's blocks then reveals them one by one; with motion
+   off these classes are never applied, so the modal appears complete.
+   visibility:hidden (not just opacity) keeps hidden buttons unclickable. */
+.wseq-hide { opacity: 0; visibility: hidden; }
+@keyframes wseq-pop {
+  0%   { opacity: 0; transform: translateY(12px) scale(.9); }
+  60%  { opacity: 1; transform: translateY(-3px) scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+body.fx-motion .wseq-in { animation: wseq-pop .38s var(--ease-back) both; }
+.win-total { display: inline-block; }
+@keyframes wseq-totalpop {
+  0%   { transform: scale(.6); }
+  55%  { transform: scale(1.55); }
+  100% { transform: scale(1); }
+}
+body.fx-motion .win-total.wseq-total-pop {
+  animation: wseq-totalpop .6s var(--ease-back);
+  color: var(--accent-dark);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.fx-motion .wseq-in, body.fx-motion .win-total.wseq-total-pop { animation: none; }
+}
+
 /* ---------- Party mode ---------- */
 .party-input {
   font-family: inherit;
