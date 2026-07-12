@@ -8,8 +8,9 @@
    Empty seats are filled with AI cats; if a guest disconnects,
    a cat takes over their seat.
 
-   Messages  host → guest: state, prompt, log, coach, modal, modalClose, start, kicked
-             guest → host: hello {name}, action {choice}
+   Messages  host → guest: state, prompt, log, coach, modal, modalClose, start, kicked,
+                           emote {seat, id}   (seat pre-rotated for the recipient)
+             guest → host: hello {name}, action {choice}, emote {id}
    ============================================================ */
 
 const NET = {
@@ -205,6 +206,15 @@ function hostOnData(conn, d) {
     if (!g || g.seat === null) return;
     const resolve = NET.pending[g.seat];
     if (resolve) { delete NET.pending[g.seat]; resolve(d.choice || { type: "pass" }); }
+    return;
+  }
+  if (d.t === "emote") {
+    // host-authoritative: unknown ids and over-limit senders are dropped silently
+    const g = NET.guests.find(g => g.conn === conn);
+    if (!g || g.seat === null) return;
+    if (typeof d.id !== "string" || typeof EMOTES === "undefined" || !EMOTES[d.id]) return;
+    if (typeof emoteRateOk !== "function" || !emoteRateOk("seat" + g.seat)) return;
+    if (typeof emoteReact === "function") emoteReact(g.seat, d.id);   // logs, shows, re-broadcasts
   }
 }
 
@@ -363,6 +373,16 @@ function netBroadcastEndModal(dataForSeat) {
   }
 }
 
+/* Emote visual to every guest, seat pre-rotated into their view (their own
+   seat is index 0, matching how projectFor rotates snapshots). */
+function netBroadcastEmote(seat, id) {
+  if (NET.role !== "host" || !NET.started) return;
+  for (const g of NET.guests) {
+    if (g.seat === null) continue;
+    try { g.conn.send({ t: "emote", seat: (seat - g.seat + 4) % 4, id }); } catch (e) {}
+  }
+}
+
 function netBroadcastPromptCancel() {
   if (NET.role !== "host" || !NET.started) return;
   for (const g of NET.guests) {
@@ -447,6 +467,14 @@ function guestOnData(d) {
       break;
     case "modalClose":
       hideModal();
+      break;
+    case "emote":
+      // visual + sound only — the narration arrives on the log channel
+      if (typeof d.id === "string" && typeof EMOTES !== "undefined" && EMOTES[d.id] &&
+          Number.isInteger(d.seat) && d.seat >= 0 && d.seat <= 3 &&
+          typeof emoteShow === "function") {
+        emoteShow(d.seat, d.id);
+      }
       break;
   }
 }

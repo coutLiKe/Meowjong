@@ -8,6 +8,7 @@ require("./scoring.test");
 require("./ai.test");
 require("./shanten.test");
 require("./net.test");
+require("./emotes.test");
 require("./save.test");
 require("./fairness.test");
 

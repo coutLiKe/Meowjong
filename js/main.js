@@ -333,6 +333,7 @@ function drawResolved(seatIdx, fromBack = false) {
     if (isWind(t)) {
       s.flowers.push(t);
       log(`🌸 ${s.emoji} ${s.name} draws flower <b>${tileShort(t)}</b> — exposed, replacement from the back wall. (${s.flowers.length} flower${s.flowers.length > 1 ? "s" : ""})`);
+      if (s.flowers.length >= 2 && typeof emoteCatReact === "function") emoteCatReact(seatIdx, "flowers");
       back = true;
       continue;
     }
@@ -741,6 +742,7 @@ function applyClaim(claim, discarder) {
   log(`${s.emoji} <b>${s.name} claims ${(MELD_LABEL[claim.claimType] || claim.claimType).toUpperCase()}!</b> on ${tileShort(claim.kind)} from ${G.seats[discarder].name}.`, "log-claim");
   renderAll();
   if (typeof fxAfterClaim === "function") fxAfterClaim(claim.seat);
+  if (typeof emoteCatReact === "function") emoteCatReact(claim.seat, claim.claimType === "chow" ? "chi" : "claim");
   if (s.melds.length >= 3 && !s.threatWarned) {
     s.threatWarned = true;
     const flowerBit = s.flowers.length >= 3 ? ` They also have <b>${s.flowers.length} flowers</b>, so their win pays big.` : "";
@@ -871,6 +873,11 @@ async function doWin(seat, winTile, selfDraw, discarder, special = {}) {
   setPrompt("");
   renderAll();
   if (typeof fxWin === "function") fxWin(seat === 0, threeGold || !!special.qiangJin);
+  if (typeof emoteCatReact === "function") {
+    emoteCatReact(seat, "win");
+    if (!selfDraw && discarder !== null && discarder !== undefined) emoteCatReact(discarder, "dealin");
+    if (threeGold || special.qiangJin) for (let i = 0; i < 4; i++) if (i !== seat) emoteCatReact(i, "bigwin");
+  }
 
   const howType = special.qiangJin ? "qiangjin" : (threeGold && !shapeWin) ? "threegold" : selfDraw ? "selfdraw" : "discard";
   // Structured, safe payload — shared by the host modal, the guest modal, and the log.
@@ -909,6 +916,7 @@ function drawGame() {
   setPrompt("");
   renderAll();
   log("<b>The wall is empty — this hand is a draw.</b>", "log-important");
+  if (typeof emoteCatReact === "function") emoteCatReact(1 + Math.floor(Math.random() * 3), "draw");
   showModal(endModalHtml({ kind: "draw" }), [{ label: "Next hand", cls: "primary", cb: () => { hideModal(); nextHand(null); } }]);
   if (typeof netBroadcastEndModal === "function") {
     netBroadcastEndModal(() => ({ kind: "draw" }));
@@ -986,6 +994,7 @@ window.addEventListener("DOMContentLoaded", () => {
   applyIcons();
   if (typeof fxInit === "function") fxInit();
   if (typeof sndInit === "function") sndInit();
+  if (typeof emoteInit === "function") emoteInit();
   if (typeof analystInit === "function") analystInit();
 
   $("#btn-menu").addEventListener("click", () => {

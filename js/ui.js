@@ -322,6 +322,8 @@ function renderAll() {
 /* ---------- Actions bar ---------- */
 
 function showActions(buttons) {
+  // an arriving prompt always takes priority over an open emote wheel
+  if (typeof emoteWheelClose === "function") emoteWheelClose();
   const bar = $("#actions");
   bar.innerHTML = "";
   for (const b of buttons) {
@@ -376,6 +378,7 @@ function log(msg, cls = "", localOnly = false) {
 /* ---------- Modal ---------- */
 
 function showModal(html, buttons = []) {
+  if (typeof emoteWheelClose === "function") emoteWheelClose();
   $("#modal-content").innerHTML = html;
   const bar = $("#modal-buttons");
   bar.innerHTML = "";

@@ -171,6 +171,61 @@ function sndScoreTotal() {
   sndTone(1568, 0.25, "sine", 0.08, 0.09);
 }
 
+/* ---------- Cat Chat · emote mood voices (E4) ----------
+   Short synthesized "mew" figures, ≤0.3 s, quiet — one per mood in the
+   emote registry (js/emotes.js). Respect the master toggle like all sound. */
+function sndEmote(mood) {
+  switch (mood) {
+    case "happy":                                    // rising major third
+      sndTone(523.25, 0.1, "sine", 0.1);
+      sndTone(659.25, 0.14, "sine", 0.1, 0.08);
+      break;
+    case "laugh":                                    // staccato triplet
+      sndTone(740, 0.05, "triangle", 0.1);
+      sndTone(740, 0.05, "triangle", 0.1, 0.09);
+      sndTone(830, 0.06, "triangle", 0.1, 0.18);
+      break;
+    case "sad":                                      // falling minor
+      sndTone(587.33, 0.12, "sine", 0.09);
+      sndTone(493.88, 0.18, "sine", 0.08, 0.1);
+      break;
+    case "angry":                                    // low buzzy burst
+      sndTone(196, 0.16, "sawtooth", 0.08);
+      sndTone(185, 0.12, "sawtooth", 0.06, 0.06);
+      break;
+    case "shock":                                    // octave jump
+      sndTone(440, 0.05, "square", 0.07);
+      sndTone(880, 0.16, "sine", 0.11, 0.05);
+      break;
+    case "love":                                     // low tremolo purr
+      sndTone(220, 0.09, "sine", 0.09);
+      sndTone(220, 0.09, "sine", 0.08, 0.1);
+      sndTone(277.18, 0.14, "sine", 0.07, 0.2);
+      break;
+    case "smug":                                     // lazy downward slide
+      sndTone(659.25, 0.1, "triangle", 0.09);
+      sndTone(587.33, 0.16, "triangle", 0.08, 0.09);
+      break;
+    case "sleepy":                                   // slow soft descent
+      sndTone(392, 0.2, "sine", 0.06);
+      sndTone(329.63, 0.24, "sine", 0.05, 0.16);
+      break;
+    case "think":                                    // one soft curious blip
+      sndTone(587.33, 0.08, "sine", 0.07);
+      sndTone(659.25, 0.1, "sine", 0.06, 0.12);
+      break;
+    case "fanfare":                                  // a small win arpeggio
+      [523.25, 659.25, 783.99].forEach((f, i) => sndTone(f, 0.14, "sine", 0.08, i * 0.05));
+      break;
+    case "gg":                                       // two-note courteous bow
+      sndTone(659.25, 0.1, "sine", 0.09);
+      sndTone(523.25, 0.16, "sine", 0.08, 0.1);
+      break;
+    default:
+      sndTone(600, 0.08, "sine", 0.07);
+  }
+}
+
 /* Quiet feedback tick on chrome/menu buttons and toggles — not on the in-game
    action buttons (Discard/Chi/Peng/Kong/Hú), which already get a contextual
    sound moments later once the resulting state change resolves. */

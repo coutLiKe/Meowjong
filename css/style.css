@@ -983,19 +983,9 @@ body.fx-motion #hand.fx-winglow { animation: fx-winglow 1.4s ease-in-out; border
   100% { opacity: 0; transform: translate(-50%, -150%) scale(.95); }
 }
 
-/* ---------- M10 · expressive cats: emote float + name-pill bounce ---------- */
-.fx-emote {
-  position: fixed;
-  z-index: 85;
-  font-size: 24px;
-  pointer-events: none;
-  animation: fx-emote 1s ease-out both;
-}
-@keyframes fx-emote {
-  0%   { opacity: 0; transform: translate(-50%, -40%) scale(.5); }
-  30%  { opacity: 1; transform: translate(-50%, -120%) scale(1.15); }
-  100% { opacity: 0; transform: translate(-50%, -210%) scale(1); }
-}
+/* ---------- M10 · expressive cats: name-pill bounce. (The old .fx-emote
+   emoji float became the Cat Chat sculpted heads — see the section at the
+   end of this file and js/emotes.js.) ---------- */
 @keyframes fx-bounce {
   0%, 100% { transform: none; }
   30% { transform: translateY(-7px) scale(1.06); }
@@ -1339,3 +1329,148 @@ body.fx-full.fx-motion #hand .tile.clickable:hover {
   body.fx-depth #player-panel { margin-top: 12px; }
   #log, body.paws-collapsed #log { height: 72px; }
 }
+
+/* ============================================================
+   Cat Chat · the reaction emote system (E1–E3)
+   Sculpted SVG cat heads that pop out over seat pills, plus the
+   8-slot emote wheel. Design: docs/EMOTE_SYSTEM_PROPOSAL.md.
+   The head always RENDERS (emotes are communication); only the
+   motion degrades with the fx ladder / reduced-motion.
+   ============================================================ */
+
+/* ---------- the sculpted face (shared by heads, wheel slots) ---------- */
+.em .hd { fill: url(#mj-headG); stroke: var(--ink); stroke-width: 2.2; }
+.em .fl { fill: url(#mj-headG); stroke: var(--ink); stroke-width: 2.2; stroke-linejoin: round; }
+.em .fi { fill: url(#mj-earG); opacity: .85; }
+.em .wh { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; fill: none; }
+.em .ln { stroke: var(--ink); stroke-width: 2.8; stroke-linecap: round; fill: none; }
+.em .fill { fill: var(--ink); }
+.em .ns { fill: var(--accent-dark); }
+.em .bl { fill: var(--accent); opacity: .45; }
+.em .tong { fill: var(--accent); }
+.em .eye { fill: #fff; stroke: var(--ink); stroke-width: 2.5; }
+.em .tr { stroke: var(--yarn); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.em .trf { fill: var(--yarn); }
+.em .hx { fill: var(--d-red); }
+.em .hxln { stroke: var(--d-red); stroke-width: 2.4; stroke-linecap: round; fill: none; }
+.em text { font-family: inherit; font-weight: 800; }
+.em .ztxt { fill: var(--ink); }
+.em .qtxt { fill: var(--accent-dark); }
+.em .flag { fill: var(--accent-dark); }
+.em .flagtxt { fill: #fff; font-weight: 800; }
+.em .cf1 { fill: #7fa877; } .em .cf2 { fill: var(--accent); }
+.em .cf3 { fill: #ffd65a; } .em .cf4 { fill: #6b5ea8; }
+
+/* ---------- the popping head ---------- */
+.emote-head {
+  position: fixed;
+  z-index: 45;                 /* above the table, below the modal (50) */
+  width: 96px; height: 96px;
+  pointer-events: none;
+  perspective: 600px;
+  filter: drop-shadow(0 10px 12px rgba(40, 26, 14, .35));
+}
+.emote-head .em-pop, .emote-head .em-bob, .emote-head svg { width: 100%; height: 100%; display: block; }
+.emote-head .em-pop { transform-style: preserve-3d; }
+
+/* fx-full: 3D pop-out at the camera + the living loop */
+.em-3d { animation: em-in3d .32s var(--ease-back) both; }
+.em-3d .em-bob { animation: em-bob 2s ease-in-out .32s infinite; transform-style: preserve-3d; }
+.em-3d.em-out { animation: em-out3d .6s ease-in both; }
+@keyframes em-in3d {
+  0%   { opacity: 0; transform: translateZ(140px) scale(.3) rotateY(-35deg); }
+  60%  { opacity: 1; transform: translateZ(0) scale(1.14, .92) rotateY(9deg); }
+  100% { opacity: 1; transform: scale(1) rotateY(0); }
+}
+@keyframes em-bob {
+  0%, 100% { transform: rotateZ(-2.5deg) rotateY(-9deg) translateY(0); }
+  50%      { transform: rotateZ(2.5deg) rotateY(9deg) translateY(-3px); }
+}
+@keyframes em-out3d { to { opacity: 0; transform: translateY(-18px) scale(.35); } }
+
+/* fx-subtle: flat 2D pop, no loops */
+.em-2d { animation: em-in2d .26s var(--ease-back) both; }
+.em-2d.em-out { animation: em-out2d .5s ease-out both; }
+@keyframes em-in2d {
+  0%   { opacity: 0; transform: scale(.4); }
+  62%  { opacity: 1; transform: scale(1.1, .9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes em-out2d { to { opacity: 0; transform: translateY(-12px) scale(.9); } }
+
+/* independent ear wiggles — the living-loop detail; motion levels only */
+body.fx-motion .em-3d svg .earL {
+  transform-box: view-box; transform-origin: 33px 42px;
+  animation: em-ear-l 1.5s ease-in-out infinite;
+}
+body.fx-motion .em-3d svg .earR {
+  transform-box: view-box; transform-origin: 67px 42px;
+  animation: em-ear-r 1.5s ease-in-out .12s infinite;
+}
+@keyframes em-ear-l { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-6deg); } 60% { transform: rotate(3deg); } }
+@keyframes em-ear-r { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(6deg); } 60% { transform: rotate(-3deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .em-3d, .em-2d, .em-3d .em-bob, .em-3d.em-out, .em-2d.em-out,
+  .em-3d svg .earL, .em-3d svg .earR { animation: none !important; }
+}
+
+/* ---------- the emote wheel ---------- */
+#emote-wheel {
+  position: fixed;
+  z-index: 46;                 /* below the modal so prompts always win */
+  left: 50%; top: 50%;         /* robust default: centered; JS lifts it above the dock */
+  margin-left: -120px; margin-top: -120px;
+  width: 240px; height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(40, 26, 14, .38) 0%, rgba(40, 26, 14, .2) 62%, transparent 72%);
+  perspective: 700px;
+}
+#emote-wheel.hidden { display: none; }
+body.fx-motion #emote-wheel { animation: emw-in .18s var(--ease-back) both; }
+@keyframes emw-in { from { opacity: 0; transform: rotateX(50deg) scale(.6); } to { opacity: 1; transform: none; } }
+.emote-slot {
+  position: absolute;
+  width: 56px; height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  border: 2.5px solid var(--ink);
+  background: var(--tile-face);
+  box-shadow: 0 4px 10px rgba(40, 26, 14, .35);
+  cursor: pointer;
+  padding: 3px;
+  transition: transform .15s var(--ease-back), box-shadow .15s ease, border-color .15s ease;
+}
+.emote-slot svg { width: 100%; height: 100%; display: block; }
+.emote-slot:hover, .emote-slot:focus-visible {
+  transform: translateZ(24px) scale(1.12);
+  border-color: var(--accent-dark);
+  box-shadow: 0 10px 20px rgba(40, 26, 14, .45);
+  outline: none;
+  z-index: 2;
+}
+.emote-slot:focus-visible { outline: 3px solid #ffd65a; outline-offset: 2px; }
+.emote-hub {
+  position: absolute; left: 50%; top: 50%;
+  width: 58px; height: 58px; margin: -29px 0 0 -29px;
+  border-radius: 50%;
+  background: rgba(40, 26, 14, .5);
+  border: 2px dashed rgba(255, 250, 235, .55);
+  color: rgba(255, 250, 235, .95);
+  font-size: 12px; font-weight: 700;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+
+/* the 😺 button on your pill */
+#emote-btn {
+  border: 1px solid var(--tile-edge);
+  background: var(--tile-face);
+  border-radius: 50%;
+  width: 28px; height: 28px;
+  font-size: 15px; line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: transform .15s var(--ease-back);
+}
+#emote-btn:hover, #emote-btn:focus-visible { transform: scale(1.15); outline: none; border-color: var(--accent-dark); }
