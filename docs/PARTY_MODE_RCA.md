@@ -1,9 +1,15 @@
 # Party Mode — Root Cause Analysis & Recovery Options
 
-**Status: ANALYSIS FOR REVIEW — no code changes proposed yet, 2026-07-12.**
+**Status: Recommendation B IMPLEMENTED, 2026-07-12** (commit 65adb6d). Shipped: dead
+PeerJS TURN hosts removed, `PARTY_TURN_SERVERS` restructured around an optional
+Metered free-account credential slot (blank by default → clean STUN-only), the 🧪
+in-game connection tester (item 3), and the "beta" label dropped since STUN-only
+already covers most networks. Option C (self-hosted coturn) remains an optional
+future upgrade, not required. Below is the original analysis that led to this call,
+retained for reference.
 Scope: why Party Mode stopped connecting for some players, what actually changed,
 and how to restore the original zero-setup experience without asking players to
-create a TURN account. Recommendation at the end; nothing is implemented.
+create a TURN account.
 
 ---
 
