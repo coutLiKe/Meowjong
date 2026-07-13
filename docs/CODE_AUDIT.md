@@ -183,7 +183,7 @@ Dead vars (`--yarn/--fish/--paw`, dragon colors), append-order override hacks (`
 
 - **Dead state:** `G.flushHinted` set but never read; `G.wildFlip` duplicates `wildKind`; `deadFlips` kept but only ever logged.
 - **Naming/placement:** `MELD_LABEL` lives in tiles.js; `$`, `log`, `icon` are collision-bait global names; `chow/pung/kong` internal ids vs Chi/Peng/Gang display names (intentional, but document it).
-- **Analyst nits:** `.concat([])` no-op; `an-linkbtn` uses inline `onclick=` (only inline handler in the codebase).
+- **Analyst nits:** `.concat([])` no-op. (The `an-linkbtn`/inline-`onclick=` finding from this audit's original pass no longer applies — that feature was since removed; the dead `.an-linkbtn` CSS was cleaned up 2026-07-13.)
 - **Consistency:** Labels/Peek toggles not persisted while Analyst prefs are; party-modal buttons still use emoji (🏠/🚪) contra the icon policy; menu decorative tiles can inherit last game's gold glow.
 - **Robustness trivia:** `startHosting` retries forever on persistent broker errors (add a cap); `removeN` is O(n²) on 14-element arrays (irrelevant); back-wall `shift()` O(n) (irrelevant); reliance on PeerJS reliable-*ordered* delivery is correct but undocumented.
 - **Distribution:** no PWA manifest/apple-touch icon; favicon is a large inline data-URI (fine, but extract when a build step exists).

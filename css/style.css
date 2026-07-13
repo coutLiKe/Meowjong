@@ -573,7 +573,6 @@ body.paws-collapsed #log { margin-right: 66px; }
 #modal h2 { margin-top: 0; }
 #modal-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 .lesson-head { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.55; }
-.callout { background: #fdf3dd; border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 12px; }
 .quiz { background: #eef3e6; border-radius: 12px; padding: 12px 14px; margin-top: 14px; }
 .quiz-options { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
 .quiz-right { color: var(--good); font-weight: 600; }
@@ -1125,17 +1124,6 @@ body.fx-depth #wall-row .tile.mini { width: 18px; height: 26px; font-size: 8px; 
 #analysis .an-hint { margin-left: auto; font-weight: 500; font-size: 11px; opacity: 0.6; }
 #an-body { margin-top: 10px; }
 .an-status { font-size: 12.5px; opacity: 0.65; font-style: italic; padding: 6px 2px; }
-.an-linkbtn {
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  padding: 3px 10px;
-  cursor: pointer;
-}
 .an-summary { font-size: 12.5px; margin-bottom: 8px; }
 .an-est {
   font-size: 10px;
