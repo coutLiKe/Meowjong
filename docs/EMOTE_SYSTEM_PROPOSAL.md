@@ -306,7 +306,7 @@ This is a free MIT café game; emotes should feel like biscuits, not battle pass
 Continues the M-numbering as **E1–E5**; E1–E3 are the core; E4–E5 can ship later.
 
 - **E1 · Sculpted faces & head-pop (foundation).** `js/emotes.js` registry with all 14
-  sculpted SVG heads (shading pass + ear groups); `fxEmoteHead(seat, id)` replaces
+  sculpted SVG heads (shading pass + ear groups); `emoteShow()`/`emoteReact()` replace
   `fxEmote` — pop-out + living loop at `fx-full` (`fxDepth()` gate), flat pop at subtle,
   static at off; AI context reactions (§7) wired to the existing hooks; log +
   live-region narration. *Single-player is fully upgraded here.* Verify: all heads
