@@ -8,9 +8,10 @@
    Empty seats are filled with AI cats; if a guest disconnects,
    a cat takes over their seat.
 
-   Messages  host → guest: state, prompt, log, coach, modal, modalClose, start, kicked,
+   Messages  host → guest: state, prompt, promptCancel, log, coach, modal, modalClose,
+                           start, kicked, lobby, ping (heartbeat),
                            emote {seat, id}   (seat pre-rotated for the recipient)
-             guest → host: hello {name}, action {choice}, emote {id}
+             guest → host: hello {name}, action {choice}, pong (heartbeat), emote {id}
    ============================================================ */
 
 const NET = {
