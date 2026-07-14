@@ -50,17 +50,19 @@ Real 4-player mahjong over the internet, no server to set up: host gets a 4-lett
 code, up to 3 friends join with it, AI cats fill empty seats and take over on disconnect.
 Everyone sees the table from their own seat (flower rows and the gold are public).
 
-> Multiplayer is peer-to-peer: it connects players directly when it can, and falls back
-> to a free public relay for strict NATs, VPNs, and hotel/corporate Wi-Fi that can't be
-> traversed directly. Public relays are shared and best-effort — if a join fails, use
-> **🎉 Party → 🧪 Test my connection** to see which layer is the problem, and putting one
-> player on a phone hotspot usually works. For a bulletproof, always-available relay you
-> can run your own TURN server (see `PARTY_TURN_SERVERS` in `js/net.js`).
+> Multiplayer is peer-to-peer over STUN, which connects players directly across most
+> networks (including cellular ↔ home Wi-Fi). It ships **relay-free** — a small minority
+> of pairs where *both* sides are behind a strict/symmetric NAT (some VPN, corporate, or
+> hotel Wi-Fi) can't be traversed directly and won't connect out of the box. If a join
+> fails, use **🎉 Party → 🧪 Test my connection** to see which layer is the problem;
+> putting one player on a phone hotspot usually works. To add a relay for those hard-NAT
+> pairs, drop free Metered credentials into `METERED_TURN` (or point `PARTY_TURN_SERVERS`
+> at your own TURN server) in `js/net.js`.
 > [Reports welcome](https://github.com/coutLiKe/meowjong/issues).
 
 ## Learning features
 
-- **🎓 Interactive tutorial** — 9 lessons with quizzes, FJ rules from zero (auto-opens first visit)
+- **🎓 Interactive tutorial** — 16 lessons with quizzes, FJ rules from zero (auto-opens first visit)
 - **🧠 Strategy School** — 6 advanced lessons: steps-to-ready, wait shapes, counting live
   tiles, gold strategy, flower economics (bet sizing), claim discipline
 - **🎓 Professor Paws** — one friendly coach, one brain. He auto-comments as you play
