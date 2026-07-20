@@ -60,10 +60,63 @@ function meldEl(meld) {
 
 /* ---------- Panels ---------- */
 
+/* A small, ALWAYS-ON sculpted cat portrait beside each opponent's name —
+   reuses the emote system's face art (js/emotes.js) so the cats have real
+   character presence at rest, not just during a transient reaction pop.
+   Populated once (innerHTML set on first render only) so its idle CSS
+   animation never restarts on every state update. */
+function _oppPortraitEnsure(panel, s) {
+  const p = panel.querySelector(".opp-portrait");
+  if (!p) return;
+  const key = s.control === "ai" ? s.name : "";   // only cats get a face — a human guest isn't one
+  if (p.dataset.face === key) return;
+  p.dataset.face = key;
+  p.innerHTML = key && typeof emoteFaceSVG === "function" ? emoteFaceSVG("happy") : "";
+  _portraitGlanceScheduleOnce();
+}
+
+/* Idle portraits held one static expression for the whole match — over a real
+   game (dozens of turns) that reads as frozen, not alive. Every so often, a
+   random cat (not the one currently "thinking", not mid-glance already) holds
+   a different calm expression for a couple seconds, like someone glancing up
+   from their tiles, then settles back to "happy". Reuses existing emote art —
+   zero new assets. Lazily started once, the first time a portrait is drawn. */
+let _portraitGlanceTimer = null;
+const PORTRAIT_GLANCE_FACES = ["smug", "think", "sleepy"];
+function _portraitGlanceScheduleOnce() {
+  if (_portraitGlanceTimer) return;
+  _portraitGlanceTimer = setInterval(_portraitGlanceTick, 6000);
+}
+function _portraitGlanceTick() {
+  if (typeof fxMotion !== "function" || !fxMotion()) return;
+  if (Math.random() > 0.22) return;   // ~once every ~27s on average, per tick across all 3 cats
+  const candidates = [1, 2, 3].filter(i => {
+    const p = document.querySelector("#opp-" + i + " .opp-portrait");
+    return p && p.dataset.face && !p.classList.contains("thinking") && !p.dataset.glancing;
+  });
+  if (!candidates.length || typeof emoteFaceSVG !== "function") return;
+  const seat = candidates[(Math.random() * candidates.length) | 0];
+  const p = document.querySelector("#opp-" + seat + " .opp-portrait");
+  if (!p) return;
+  const face = PORTRAIT_GLANCE_FACES[(Math.random() * PORTRAIT_GLANCE_FACES.length) | 0];
+  p.dataset.glancing = "1";
+  p.innerHTML = emoteFaceSVG(face);
+  // P4: keep the 3D table's cat portrait doing the same glance in lockstep
+  if (typeof scene3dPortraitReact === "function") scene3dPortraitReact(seat, face);
+  setTimeout(() => {
+    delete p.dataset.glancing;
+    if (p.dataset.face) p.innerHTML = emoteFaceSVG("happy");
+  }, 2600);
+}
+
 function renderOpponents() {
   for (let i = 1; i <= 3; i++) {
     const s = G.seats[i];
     const panel = $("#opp-" + i);
+    _oppPortraitEnsure(panel, s);
+    const thinking = G.activeSeat === i && s.control === "ai";
+    const portrait = panel.querySelector(".opp-portrait");
+    if (portrait) portrait.classList.toggle("thinking", thinking);
     panel.querySelector(".opp-name").textContent = s.emoji + " " + s.name;
     const oppScore = panel.querySelector(".opp-score");
     if (typeof fxCountUp === "function") fxCountUp(oppScore, s.score, " pts");
@@ -317,6 +370,7 @@ function renderAll() {
   renderStatus();
   renderHand();
   if (typeof netAfterRender === "function") netAfterRender();
+  if (typeof scene3dAfterRender === "function") scene3dAfterRender();
 }
 
 /* ---------- Actions bar ---------- */
@@ -416,9 +470,15 @@ function endModalHtml(d) {
   const melds = (d.melds || [])
     .filter(m => m && (m.type === "pung" || m.type === "kong" || m.type === "chow"))
     .map(m => ({ type: m.type, kind: _kindClamp(m.kind), concealed: !!m.concealed }));
+  // Instant wins (三金倒 three golds / 抢金 robbing the gold) are the rarest,
+  // biggest moments the ruleset has — they get a distinct gold "jackpot" banner
+  // instead of the normal win's warm-but-calmer one.
+  const jackpot = d.howType === "threegold" || d.howType === "qiangjin";
+  const jackpotTag = jackpot
+    ? `<div class="win-jackpot-tag">✨ ${d.howType === "threegold" ? "三金倒 · THREE GOLDS" : "抢金 · ROBBED THE GOLD"} ✨</div>` : "";
   const h2 = d.youWin
-    ? "<h2>🎉 Hú! 胡 — You win!</h2>"
-    : `<h2>${esc(d.winnerEmoji || "")} ${esc(d.winnerName || "")} wins this hand</h2>`;
+    ? `<div class="win-banner${jackpot ? " jackpot" : ""}"><div class="win-banner-shine"></div><h2>🎉 Hú! 胡 — You win!</h2>${jackpotTag}</div>`
+    : `<div class="win-banner opp${jackpot ? " jackpot" : ""}"><div class="win-banner-shine"></div><h2>${esc(d.winnerEmoji || "")} ${esc(d.winnerName || "")} wins this hand</h2>${jackpotTag}</div>`;
   let body = `<p>${esc(d.winnerName || "")} won ${endHowText(d)}</p>`;
   body += `<p><b>The winning hand</b> — grouped into its sets + pair (gold = ${tileShort(_kindClamp(d.wild))} 🥇):</p>` +
     winGroupsHTML(handKinds, _kindClamp(d.wild), melds.length);

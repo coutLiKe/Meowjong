@@ -23,7 +23,12 @@
 body {
   margin: 0;
   font-family: "Avenir Next", "Segoe UI", ui-rounded, system-ui, sans-serif;
-  background: var(--bg);
+  /* warm room ambience: a soft "lamp over the table" falloff instead of a flat
+     fill — replaces nothing structurally, just gives the scene a light source */
+  background:
+    radial-gradient(ellipse 900px 620px at 50% 30%, #fdf6e8 0%, transparent 70%),
+    radial-gradient(ellipse 1400px 1000px at 50% 100%, #e6d7b8 0%, transparent 60%),
+    var(--bg);
   color: var(--ink);
 }
 
@@ -252,6 +257,34 @@ header button:hover { background: var(--accent-dark); }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(232, 137, 90, 0.25), 0 3px 10px rgba(74, 52, 38, 0.18);
 }
+/* Persistent cat portrait — the sculpted emote face (js/emotes.js), always on,
+   at rest, not just during a reaction. Gives the cats real presence instead of
+   a bare name pill + tiny glyph. Idle breathing is subtle and slow so it never
+   competes with the big transient reaction pop; "thinking" (their live turn)
+   gets a warmer, faster pulse so you can feel them considering a move. */
+.opp-portrait {
+  display: inline-block;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--felt);
+  box-shadow: 0 1px 3px rgba(74, 52, 38, 0.3);
+  flex: none;
+}
+.opp-portrait:empty { display: none; }
+.opp-portrait svg { width: 130%; height: 130%; display: block; transform: translate(-8%, -2%); }
+body.fx-motion .opp-portrait svg { animation: portrait-breathe 3.6s ease-in-out infinite; }
+@keyframes portrait-breathe { 0%, 100% { transform: translate(-8%, -2%) rotate(0deg); } 50% { transform: translate(-8%, -3%) rotate(-2deg); } }
+.opp-portrait.thinking { box-shadow: 0 0 0 2px var(--accent), 0 2px 5px rgba(74, 52, 38, 0.35); }
+body.fx-motion .opp-portrait.thinking svg { animation: portrait-think 1.1s ease-in-out infinite; }
+@keyframes portrait-think {
+  0%, 100% { transform: translate(-8%, -2%) rotate(-3deg) scale(1); }
+  50%      { transform: translate(-8%, -2%) rotate(3deg) scale(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opp-portrait svg, .opp-portrait.thinking svg { animation: none !important; }
+}
+
 .opp-name { font-weight: 700; font-size: 13.5px; white-space: nowrap; }
 .opp-sub { font-size: 10.5px; opacity: 0.6; }
 .opp-score, .opp-wind { font-size: 11.5px; background: #f0e4cf; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
@@ -276,11 +309,58 @@ header button:hover { background: var(--accent-dark); }
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
   background: var(--felt);
   border: 6px solid var(--felt-dark);
   border-radius: 18px;
   padding: 12px;
   box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+/* a warm "hanging lamp" pool of light over the river (directional, so the
+   table reads as lit from above) PLUS a fine woven-felt crosshatch — the felt
+   was a flat color ramp with no material texture; this is what actually
+   reads as "cloth" instead of "colored plastic" up close. */
+#center::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 38%, rgba(255, 244, 210, 0.28) 0%, transparent 70%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.05) 0px, rgba(0, 0, 0, 0.05) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 0px, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 4px);
+}
+/* a real light source isn't perfectly constant — a slow, barely-there breathe */
+body.fx-motion #center::before { animation: lamp-breathe 7s ease-in-out infinite; }
+@keyframes lamp-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.86; } }
+
+/* dust motes drifting up through the lamp light — Full 3D + motion only */
+#dust-motes { position: absolute; inset: 0; pointer-events: none; overflow: hidden; display: none; }
+body.fx-depth.fx-motion #dust-motes { display: block; }
+.dust-mote {
+  position: absolute;
+  top: 82%;
+  width: var(--size, 2px);
+  height: var(--size, 2px);
+  border-radius: 50%;
+  background: rgba(255, 248, 224, .6);
+  filter: blur(.4px);
+  opacity: 0;
+  animation-name: dust-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes dust-rise {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  12%  { opacity: .6; }
+  55%  { transform: translate(var(--drift), -70px); opacity: .45; }
+  90%  { opacity: 0; }
+  100% { transform: translate(calc(var(--drift) * 1.6), -130px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.fx-motion #center::before { animation: none; }
+  #dust-motes { display: none !important; }
 }
 .river-label {
   font-size: 12px;
@@ -308,7 +388,21 @@ header button:hover { background: var(--accent-dark); }
   color: rgba(251, 246, 234, 0.85);
   padding: 4px 6px;
 }
+/* Discards get a small per-tile resting angle — thrown down by hand, not
+   placed by a machine — plus a grounded contact shadow so they read as
+   sitting ON the felt. Uses the same rotate-a-tile trick as .menu-tiles, safe
+   here because renderRiver() never FLIP-animates .river-cell (only #hand's
+   own tiles are FLIP targets — see fxFlipPlay). */
 .river-cell { position: relative; }
+.river-cell:nth-child(7n+1) { transform: rotate(-3deg); }
+.river-cell:nth-child(7n+2) { transform: rotate(2deg); }
+.river-cell:nth-child(7n+3) { transform: rotate(-1.5deg); }
+.river-cell:nth-child(7n+4) { transform: rotate(3deg); }
+.river-cell:nth-child(7n+5) { transform: rotate(-2deg); }
+.river-cell:nth-child(7n+6) { transform: rotate(1deg); }
+.river-cell:nth-child(7n)   { transform: rotate(-0.5deg); }
+.river-cell .tile { box-shadow: 0 3px 6px rgba(40, 26, 14, 0.3); }
+body.fx-depth .river-cell .tile { box-shadow: 0 2px 0 #93ae8a, 0 4px 0 #7c9674, 0 11px 9px rgba(30, 20, 10, 0.34); }
 .river-badge {
   position: absolute;
   bottom: -4px;
@@ -625,6 +719,52 @@ body.fx-motion .win-total.wseq-total-pop {
   body.fx-motion .wseq-in, body.fx-motion .win-total.wseq-total-pop { animation: none; }
 }
 
+/* ---------- Win banner — the win/draw modal's header, as a celebration
+   instead of a receipt. Bleeds to the modal's edges (matches #modal's own
+   22px/26px padding + 18px radius) so it reads as one warm marquee. ---------- */
+.win-banner {
+  position: relative;
+  overflow: hidden;
+  margin: -22px -26px 16px;
+  padding: 22px 26px 16px;
+  border-radius: 16px 16px 0 0;
+  text-align: center;
+  background: linear-gradient(135deg, #ffe3b0, #ffd65a 55%, #ffb85c);
+}
+.win-banner.opp { background: linear-gradient(135deg, #eef3e6, #d8e8c9 60%, #c9dcb3); }
+.win-banner.jackpot { background: linear-gradient(135deg, #ffd65a, #ff9a4d 50%, #e8895a); }
+.win-banner h2 { margin: 0; font-size: 27px; }
+.win-jackpot-tag {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(74, 52, 38, .88);
+  color: #ffd65a;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .4px;
+}
+.win-banner-shine {
+  position: absolute;
+  top: 0; left: -60%;
+  width: 40%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, .6), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+body.fx-motion .win-banner-shine { animation: win-shine 1.3s ease-out .35s 1 both; }
+@keyframes win-shine { from { left: -60%; } to { left: 130%; } }
+body.fx-motion .win-banner.jackpot { animation: win-banner-flash 1.8s ease-in-out .1s 2; }
+@keyframes win-banner-flash {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .win-banner-shine { display: none; }
+  body.fx-motion .win-banner.jackpot { animation: none; }
+}
+
 /* ---------- Party mode ---------- */
 .party-input {
   font-family: inherit;
@@ -688,13 +828,20 @@ body.fx-motion .win-total.wseq-total-pop {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* plain "center" clips the START of the content with no way to scroll to
+     it once the column is taller than the viewport (review: shorter window
+     → the logo/title cut off at the top, unreachable) — "safe center"
+     centers when it fits and falls back to top-aligned + scrollable when it
+     doesn't */
+  justify-content: safe center;
   gap: 10px;
   padding: 30px 20px;
   text-align: center;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(255, 246, 220, 0.10), transparent 60%),
-    linear-gradient(165deg, #7a9a6a, #5d8556 55%, #4a6f45);
+    radial-gradient(ellipse 900px 520px at 50% 8%, rgba(255, 246, 220, 0.20), transparent 62%),
+    radial-gradient(ellipse 1100px 700px at 50% 105%, rgba(0, 0, 0, 0.28), transparent 65%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 34px),
+    linear-gradient(165deg, #82a271, #5d8556 52%, #44693f);
   color: #fdf8ec;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
@@ -703,10 +850,19 @@ body.fx-motion .win-total.wseq-total-pop {
 #screen-loading.fade-out { opacity: 0; transition: opacity 0.45s ease; }
 
 .menu-logo {
+  position: relative;
   font-size: 74px;
   line-height: 1;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
   animation: logo-bob 2.2s ease-in-out infinite;
+}
+.menu-logo::before {
+  content: "";
+  position: absolute;
+  inset: -22px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 235, 190, 0.30), transparent 72%);
 }
 @keyframes logo-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-9px) rotate(3deg); } }
 .menu-title {
@@ -714,6 +870,7 @@ body.fx-motion .win-total.wseq-total-pop {
   font-weight: 800;
   letter-spacing: 1px;
   margin-top: 4px;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), 0 0 26px rgba(255, 224, 170, 0.22);
 }
 .menu-sub { font-size: 15px; opacity: 0.9; margin-bottom: 8px; }
 
@@ -745,7 +902,7 @@ body.fx-motion .win-total.wseq-total-pop {
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
-  background: var(--panel);
+  background: linear-gradient(180deg, #fffdf9, var(--panel) 60%, #fbf2e2);
   border: none;
   border-radius: 14px;
   border-bottom: 4px solid #d9c8a9;
@@ -755,13 +912,29 @@ body.fx-motion .win-total.wseq-total-pop {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-  transition: transform 0.09s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 6px 16px rgba(0, 0, 0, 0.22);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 .menu-btn span { font-size: 12px; font-weight: 500; opacity: 0.65; }
-.menu-btn:hover { transform: translateY(-2px); }
-.menu-btn.primary { background: var(--accent); color: #fff; border-bottom-color: var(--accent-dark); }
+.menu-btn:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 10px 20px rgba(0, 0, 0, 0.28); }
+.menu-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 3px 8px rgba(0, 0, 0, 0.22); }
+.menu-btn.primary {
+  background: linear-gradient(180deg, #f0985f, var(--accent) 55%, var(--accent-dark));
+  color: #fff;
+  border-bottom-color: #a8542c;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 6px 18px rgba(180, 90, 40, 0.4);
+}
+.menu-btn.primary:hover { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 10px 24px rgba(180, 90, 40, 0.48); }
 .menu-btn.primary span { opacity: 0.9; }
+.menu-btn .mb-head .ico {
+  width: 26px;
+  height: 26px;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(93, 133, 86, 0.12);
+  color: var(--felt-dark);
+}
+.menu-btn.primary .mb-head .ico { background: rgba(255, 255, 255, 0.22); color: #fff; }
 .menu-foot { font-size: 12.5px; opacity: 0.85; margin-top: 16px; }
 
 /* ---------- Inline icon set ---------- */
@@ -907,6 +1080,9 @@ body.fx-motion #center.fx-winshake { animation: fx-shake .6s ease-in-out; }
 body.fx-motion #hand.fx-winglow { animation: fx-winglow 1.4s ease-in-out; border-radius: 12px; }
 
 .fx-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+/* modal-reveal burst: fixed to the viewport, above #modal-overlay (z-index 50)
+   so it visibly rains while the win modal is open, not hidden behind it */
+.fx-confetti-modal { position: fixed; inset: 0; pointer-events: none; z-index: 55; }
 
 /* ============================================================
    M9 · polish — toasts, meld sparks, log-line fade-in
@@ -1444,3 +1620,28 @@ body.fx-motion #emote-wheel { animation: emw-in .18s var(--ease-back) both; }
   transition: transform .15s var(--ease-back);
 }
 #emote-btn:hover, #emote-btn:focus-visible { transform: scale(1.15); outline: none; border-color: var(--accent-dark); }
+
+/* ---------- P2 · First-person 3D table (beta) ----------
+   The Three.js canvas sits behind the page; the DOM board hides and the
+   surviving chrome (HUD bar, prompt + action dock, You pill, coach, modals)
+   floats above it. The engine and every prompt flow are untouched — this is
+   a pure presentation/input swap, and toggling back is instant. */
+#scene3d-canvas { display: none; position: fixed; inset: 0; z-index: 1; }
+body.mode3d #scene3d-canvas { display: block; }
+body.mode3d #table, body.mode3d #hand, body.mode3d #your-melds { display: none; }
+body.mode3d #log-wrap { display: none; }             /* beta: the coach still narrates */
+/* perspective:none matters: the classic board's CSS-3D perspective on #layout
+   would otherwise become the containing block for our fixed-position dock,
+   pinning "bottom: 10px" to the collapsed layout box instead of the viewport */
+body.mode3d #layout { position: relative; z-index: 2; pointer-events: none; perspective: none; }
+body.mode3d #player-panel {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 168px;                 /* floats on the empty felt between river and rack */
+  width: min(720px, 94vw);
+  pointer-events: none;
+  z-index: 2;
+}
+body.mode3d #player-top, body.mode3d #dock { pointer-events: auto; }
+body.mode3d #prompt { text-shadow: 0 1px 3px rgba(40, 26, 14, 0.55); color: #fff7ea; }

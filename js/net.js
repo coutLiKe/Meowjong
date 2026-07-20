@@ -20,11 +20,13 @@ const NET = {
   peer: null,
   code: null,
   guests: [],          // host: [{conn, name, seat|null}]
+  spectators: [],      // host: [{conn, name}] — read-only 5th+ joiners (G8)
   conn: null,          // guest: connection to host
   pending: {},         // host: seat → resolve fn for outstanding prompt
   myName: "",
   hb: null,            // heartbeat interval id
   lastHostSeen: 0,     // guest: timestamp of last message from host
+  matchTarget: 8,      // host: hands per party match, host-set in the lobby (mirrors main.js MATCH_HANDS)
 };
 
 const HB_INTERVAL_MS = 7000;    // ping cadence
@@ -108,6 +110,10 @@ function startHostHeartbeat() {
     for (const g of NET.guests.slice()) {
       if (g.lastSeen && now - g.lastSeen > HB_TIMEOUT_MS) { hostOnGuestGone(g.conn); continue; }
       try { g.conn.send({ t: "ping" }); } catch (e) {}
+    }
+    for (const sp of NET.spectators.slice()) {
+      if (sp.lastSeen && now - sp.lastSeen > HB_TIMEOUT_MS) { hostOnGuestGone(sp.conn); continue; }
+      try { sp.conn.send({ t: "ping" }); } catch (e) {}
     }
   }, HB_INTERVAL_MS);
 }
@@ -331,6 +337,9 @@ function renderLobby() {
   const list = NET.guests.map((g, i) =>
     `<li>${GUEST_EMOJIS[i + 1]} <b>${escapeHtml(g.name)}</b> — connected</li>`).join("");
   const fills = 3 - NET.guests.length;
+  const specList = NET.spectators.map(sp => `<li>👀 <b>${escapeHtml(sp.name)}</b> — spectating</li>`).join("");
+  const lenOpts = [8, 16, 24].map(n =>
+    `<option value="${n}" ${NET.matchTarget === n ? "selected" : ""}>${n} hands</option>`).join("");
   showModal(`
     <h2>🏠 Hosting room <span class="room-code">${NET.code}</span></h2>
     <p>Share the code <b>${NET.code}</b> with your friends. They click <b>🎉 Party → Join with code</b>.</p>
@@ -338,21 +347,38 @@ function renderLobby() {
       <li>🧑 <b>${escapeHtml(NET.myName)}</b> — host (you)</li>
       ${list}
       ${fills > 0 ? `<li class="log-dim">${AI_CATS.slice(NET.guests.length).map(c => c.emoji + " " + c.name).join(", ")} will fill the empty seat${fills === 1 ? "" : "s"}</li>` : ""}
+      ${specList}
     </ul>
-    <p class="log-dim">${NET.started ? "Game in progress — new joiners wait for the next match." : "Start whenever you're ready; friends can't join mid-match."}</p>`,
+    ${!NET.started ? `<p><label>Match length: <select id="party-match-len">${lenOpts}</select></label>
+    <span class="log-dim">— a 5th+ joiner watches read-only as a spectator</span></p>` : ""}
+    <p class="log-dim">${NET.started ? "Game in progress — new joiners watch as spectators." : "Start whenever you're ready; friends can't join mid-match."}</p>`,
     [
       { label: NET.started ? "Resume game" : `Start match 🀄`, cls: "primary", cb: () => { hideModal(); if (!NET.started) hostStartGame(); } },
       { label: "Close party", cls: "secondary", cb: () => netShutdown("The host closed the party.") },
     ]);
+  const lenSel = $("#party-match-len");
+  if (lenSel) lenSel.addEventListener("change", e => { NET.matchTarget = parseInt(e.target.value, 10) || 8; });
 }
 
 function hostOnData(conn, d) {
   if (!d || typeof d !== "object") return;
   const known = NET.guests.find(g => g.conn === conn);
   if (known) known.lastSeen = Date.now();   // any message keeps a guest alive
+  const knownSpec = NET.spectators.find(sp => sp.conn === conn);
+  if (knownSpec) knownSpec.lastSeen = Date.now();
   if (d.t === "pong" || d.t === "ping") return;
   if (d.t === "hello") {
-    if (NET.started || NET.guests.length >= 3) { conn.send({ t: "kicked", why: NET.started ? "Game already in progress." : "Room is full." }); conn.close(); return; }
+    // Seats full, or a match already running: offer a read-only spectator slot
+    // instead of turning the joiner away outright (G8). Spectators never affect
+    // the game — they only ever receive redacted, public-only state.
+    if (NET.started || NET.guests.length >= 3) {
+      const name = sanitizeName(d.name);
+      NET.spectators.push({ conn, name, lastSeen: Date.now() });
+      conn.send({ t: "spectate", code: NET.code });
+      netSendSpectatorSnapshot(conn);
+      if (!NET.started) renderLobby();
+      return;
+    }
     NET.guests.push({ conn, name: sanitizeName(d.name), seat: null, lastSeen: Date.now() });
     renderLobby();
     conn.send({ t: "lobby", code: NET.code, names: [NET.myName].concat(NET.guests.map(g => g.name)) });
@@ -376,6 +402,8 @@ function hostOnData(conn, d) {
 }
 
 function hostOnGuestGone(conn) {
+  const si = NET.spectators.findIndex(sp => sp.conn === conn);
+  if (si >= 0) { NET.spectators.splice(si, 1); return; }
   const i = NET.guests.findIndex(g => g.conn === conn);
   if (i < 0) return;
   const g = NET.guests.splice(i, 1)[0];
@@ -415,7 +443,7 @@ function hostStartGame() {
   if (typeof hideMenu === "function") hideMenu();
   netResetStateCache();   // fresh dedup baseline for the new match/seat assignment
   log(`<b>🎉 Party match started — room ${NET.code}.</b>`, "log-important");
-  newMatch();
+  newMatch(NET.matchTarget);
 }
 
 /* Ask the human at a remote seat to make a choice; resolves {type:'auto'} if they vanish */
@@ -474,6 +502,35 @@ function projectFor(viewSeat) {
   };
 }
 
+/* Read-only spectator snapshot (G8): unrotated, ALL hands hidden (including
+   the host's) — a spectator never sees any concealed tile, just the same
+   public information any seated player already sees (river, melds, flowers,
+   scores, wall count). */
+function projectForSpectator() {
+  const seats = G.seats.map(s => ({
+    name: s.name, emoji: s.emoji, score: s.score, wind: s.wind,
+    melds: s.melds || [], flowers: s.flowers || [],
+    handLen: (s.hand || []).length,
+  }));
+  return {
+    seats,
+    river: (G.river || []).map(d => ({ kind: d.kind, seat: d.seat })),
+    dealer: G.dealer,
+    wallLen: (G.wall && G.wall.length) || 0,
+    handNumber: G.handNumber,
+    wildKind: G.wildKind,
+    wildFlip: G.wildFlip,
+  };
+}
+function netSendSpectatorSnapshot(conn) {
+  try { conn.send({ t: "specstate", g: projectForSpectator() }); } catch (e) {}
+}
+function netFlushSpectators() {
+  if (NET.role !== "host" || !NET.started || !NET.spectators.length) return;
+  const proj = projectForSpectator();
+  for (const sp of NET.spectators) { try { sp.conn.send({ t: "specstate", g: proj }); } catch (e) {} }
+}
+
 /* ---------- Coalesced, deduplicated state broadcast (H9) ----------
    renderAll() fires 4–8× per turn; instead of sending a full snapshot each
    time, we coalesce a synchronous burst into a single microtask flush and skip
@@ -501,6 +558,7 @@ function netFlushState() {
     _netLastSnap[g.seat] = key;
     try { g.conn.send({ t: "state", g: proj }); } catch (e) { /* dropped */ }
   }
+  netFlushSpectators();
 }
 
 function netResetStateCache() { for (const k in _netLastSnap) delete _netLastSnap[k]; }
@@ -511,6 +569,18 @@ function netBroadcastLog(msg, cls) {
   for (const g of NET.guests) {
     if (g.seat !== null) { try { g.conn.send({ t: "log", msg, cls }); } catch (e) {} }
   }
+  for (const sp of NET.spectators) { try { sp.conn.send({ t: "log", msg, cls }); } catch (e) {} }
+}
+
+/* Structured standings payload (mirrors netBroadcastEndModal's shape) — sent
+   to every guest AND spectator when a party match hits its target length. */
+function netBroadcastStandings(dataForSeat) {
+  if (NET.role !== "host" || !NET.started) return;
+  netFlushState();
+  for (const g of NET.guests) {
+    if (g.seat !== null) { try { g.conn.send({ t: "standings", data: dataForSeat(g.seat) }); } catch (e) {} }
+  }
+  for (const sp of NET.spectators) { try { sp.conn.send({ t: "standings", data: dataForSeat(null) }); } catch (e) {} }
 }
 
 function netSendTo(seatIdx, payload) {
@@ -634,6 +704,20 @@ function guestOnData(d) {
     case "state":
       guestApplySnapshot(d.g);
       break;
+    case "spectate":
+      NET.role = "spectator";
+      NET.code = d.code;
+      startGuestHeartbeat();
+      enterSpectatorView();
+      break;
+    case "specstate":
+      spectatorApplySnapshot(d.g);
+      break;
+    case "standings":
+      showModal(standingsHtml(d.data) + `<p><i>Waiting for the host…</i></p>`, [
+        { label: "Leave", cls: "secondary", cb: () => netShutdown("You left the room.") },
+      ]);
+      break;
     case "prompt":
       guestHandlePrompt(d);
       break;
@@ -647,6 +731,9 @@ function guestOnData(d) {
       // structured end-of-hand data only — never raw host HTML
       // (showEndModal = showModal + the staged win ceremony)
       showEndModal(endModalHtml(d.data) + "<p><i>Waiting for the host to start the next hand…</i></p>", []);
+      if (typeof fxWinModalConfetti === "function" && d.data) {
+        fxWinModalConfetti(!!d.data.youWin, d.data.howType === "threegold" || d.data.howType === "qiangjin");
+      }
       break;
     case "modalClose":
       hideModal();
@@ -697,6 +784,34 @@ function guestApplySnapshot(snap) {
   renderHand();
 }
 
+/* ---------- Spectator (read-only 5th+ joiner, G8) ----------
+   Deliberately NOT the full 3D board — a lightweight, safe text summary
+   rendered inside the existing modal (repeated showModal() calls just replace
+   its innerHTML, no flicker), so this never touches the tuned board renderer
+   or risks a concealed-hand leak through it. */
+function enterSpectatorView() {
+  hideModal();
+  if (typeof hideMenu === "function") hideMenu();
+  log(`<b>👀 You're spectating room ${NET.code} — read-only.</b>`, "log-important", true);
+}
+
+function spectatorHtml(snap) {
+  const rows = snap.seats.map((s, i) => {
+    const fl = (s.flowers || []).length;
+    const melds = (s.melds || []).length;
+    return `<li>${escapeHtml(s.emoji)} <b>${escapeHtml(s.name)}</b> — ${s.score} pts · ${melds} meld${melds === 1 ? "" : "s"} · ${fl}🌸 · ${s.handLen} tile${s.handLen === 1 ? "" : "s"} in hand${i === snap.dealer ? " · dealer" : ""}</li>`;
+  }).join("");
+  const riverStr = snap.river.length ? snap.river.map(d => tileShort(d.kind)).join(" ") : "(empty)";
+  return `<h2>👀 Spectating — room ${escapeHtml(NET.code)}</h2>
+    <p>Hand ${snap.handNumber} · Wall ${snap.wallLen} left · Gold ${snap.wildKind != null ? tileShort(snap.wildKind) : "?"}</p>
+    <ul class="lobby-list">${rows}</ul>
+    <p><b>River:</b> ${escapeHtml(riverStr)}</p>`;
+}
+
+function spectatorApplySnapshot(snap) {
+  showModal(spectatorHtml(snap), [{ label: "Leave", cls: "secondary", cb: () => netShutdown("You left as a spectator.") }]);
+}
+
 function guestHandlePrompt(p) {
   const send = choice => { try { NET.conn.send({ t: "action", choice }); } catch (e) {} };
   if (p.kind === "turn") {
@@ -726,7 +841,7 @@ function netShutdown(reason) {
   try { for (const k in NET.pending) { const r = NET.pending[k]; delete NET.pending[k]; r({ type: "auto" }); } } catch (e) {}
   destroyPeerQuietly();
   NET.role = null; NET.started = false;
-  NET.guests = []; NET.pending = {}; NET.code = null;
+  NET.guests = []; NET.spectators = []; NET.pending = {}; NET.code = null;
   showModal(`<h2>🎉 Party over</h2><p>${escapeHtml(reason)}</p><p>Reload to return to single-player vs the café cats.</p>`,
     [{ label: "Back to single-player", cls: "primary", cb: () => location.reload() }]);
 }

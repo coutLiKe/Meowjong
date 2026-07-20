@@ -18,7 +18,8 @@ with friends. This is the only variant implemented.
   whose advice runs on exact efficiency math (shanten + tile acceptance).
 - **Accessible** — fully keyboard-playable hand, labelled tiles, live-region narration.
 - **Zero build, zero server** — plain HTML/CSS/JS; sound is synthesized (no audio files);
-  the only dependency is PeerJS for party mode.
+  the only dependencies are PeerJS (party mode) and Three.js (the 3D table below) —
+  both vendored locally, so the game still opens straight from `file://` offline.
 
 ## How to run locally
 
@@ -43,6 +44,29 @@ Tests: `node tests/run.js` (or `npm test`).
   on self-draws and instant wins everyone pays.
 - Chi only from the previous player; peng/gang from anyone; concealed/added gangs with
   back-wall replacement draws.
+
+## First-person 3D table (beta) 🀄
+
+Sit AT the table: turn ⚙ Options → **3D table (beta)** on to play from a real
+seated perspective — competition-size tiles, board-game lighting, and a real
+felt-and-wood table you lean into. Drag a tile from your rack into the river
+to discard; every claim/kong/win prompt, Professor Paws, and the coach's
+analysis are the same panels as the classic board, just floating over the
+scene. Same rules, same AI, same save — this is a presentation-and-input
+layer over the identical game, not a separate mode with its own logic.
+
+- **Desktop + mouse only, by design.** The toggle disables itself (and falls
+  back live if you resize below it) on a narrow or touch-primary screen —
+  the classic board is the tested, always-available, fully keyboard/
+  screen-reader-accessible path.
+- **Hidden information stays hidden.** Opponents' concealed tiles are never
+  sent to the renderer as anything but a count; the camera is limited to a
+  realistic seated range that a scripted sweep across its entire reachable
+  envelope confirms can never face a hidden tile. See `docs/FIRSTPERSON_3D_PLAN.md`
+  for the full verification trail.
+- Respects the same Full 3D / Subtle / Off effects setting and
+  `prefers-reduced-motion` as the classic board — camera moves and tile
+  placements go instant, nothing keeps animating, when motion is reduced.
 
 ## Party mode 🎉
 

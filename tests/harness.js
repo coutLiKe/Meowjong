@@ -16,7 +16,7 @@ const vm = require("vm");
 
 const ROOT = path.join(__dirname, "..");
 // Order matters (same as index.html) — later files reference earlier globals.
-const FILES = ["js/tiles.js", "js/engine.js", "js/ai.js", "js/net.js", "js/emotes.js", "js/main.js"];
+const FILES = ["js/tiles.js", "js/engine.js", "js/ai.js", "js/net.js", "js/emotes.js", "js/scene3d.js", "js/main.js"];
 
 /* Names we surface for tests (missing ones resolve to undefined, not a crash). */
 const EXPORTS = [
@@ -32,6 +32,7 @@ const EXPORTS = [
   "MATCH_HANDS", "SAVE_VERSION",
   "EMOTES", "EMOTE_ART", "EMOTE_LOADOUT", "EMOTE_RATE", "EMOTE_EVENTS",
   "emoteFaceSVG", "emoteRateOk",
+  "scene3dProjection",
 ];
 
 function makeLocalStorage() {
