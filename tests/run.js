@@ -11,6 +11,7 @@ require("./net.test");
 require("./emotes.test");
 require("./save.test");
 require("./fairness.test");
+require("./scene3d.test");
 
 const { run } = require("./harness");
 process.exit(run());

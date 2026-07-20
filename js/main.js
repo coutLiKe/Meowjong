@@ -23,6 +23,8 @@ const G = {
   wildKind: null,    // the wild (gold) kind this hand
   wildFlip: null,    // the flipped display copy
   deadFlips: [],     // winds flipped while searching for the gold
+  dailyMode: false,  // true while playing the seeded Daily Hand (G4)
+  myDiscardLog: [],  // this hand's local-human discards + shanten trace (G6 recap; solo only)
 };
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -57,6 +59,7 @@ function isSoloMatch() {
 }
 
 function saveMatch() {
+  if (G.dailyMode) return;      // the Daily Hand is a single seeded puzzle, never the resumable ledger
   if (!isSoloMatch()) return;   // party matches can't be resumed (P2P session)
   storeSet(SAVE_KEY, JSON.stringify({
     v: SAVE_VERSION,
@@ -85,6 +88,7 @@ function loadMatch() {
 function clearSave() { storeSet(SAVE_KEY, ""); }
 
 function resumeMatch() {
+  G.dailyMode = false;
   const d = loadMatch();
   if (!d) { newMatch(); return; }
   for (let i = 0; i < 4; i++) {
@@ -117,25 +121,62 @@ function showHouseRules() {
     On a discard win the discarder pays double; on self-draws &amp; instant wins everyone pays.</p>
     <p><b>A match is ${MATCH_HANDS} hands</b>, then final standings (you can keep playing).</p>
     <p class="log-dim"><b>Simplified for approachability:</b> chi only from the player on your
-    left; no robbing-the-kong; the dealer isn't eligible for 抢金; no reserved dead wall.</p>`,
+    left; no robbing-the-kong; the dealer isn't eligible for 抢金; no reserved dead wall.</p>
+    <p class="log-dim"><b>🀄 3D table (beta):</b> the same rules and engine, just a first-person
+    seated view (⚙ Options). Drag to discard instead of click; desktop + mouse only.</p>`,
     [{ label: "Got it", cls: "primary", cb: hideModal }]);
 }
 
-function showStandings() {
+/* Shared, structured standings payload — used by the host's own modal AND
+   broadcast to party guests (never raw host HTML; see showEndModal's comment
+   for why that channel stays structured-data-only). */
+function standingsData(youSeat) {
   const ranked = G.seats
-    .map(s => ({ name: s.name, emoji: s.emoji, score: s.score, you: s.control === "local" }))
+    .map((s, i) => ({ name: s.name, emoji: s.emoji, score: s.score, seat: i }))
     .sort((a, b) => b.score - a.score);
-  const target = G.matchTarget || MATCH_HANDS;
-  let html = `<h2>🏁 Match complete!</h2><p>Final standings after ${target} hands:</p><ol class="standings">`;
-  ranked.forEach((r, i) => {
-    html += `<li class="${r.you ? "you" : ""}">${i === 0 ? "🏆 " : ""}${escapeHtml(r.emoji)} <b>${escapeHtml(r.name)}</b> — ${r.score} pts${r.you ? " (you)" : ""}</li>`;
+  return { ranked, target: G.matchTarget || MATCH_HANDS, youSeat };
+}
+function standingsHtml(data) {
+  let html = `<h2>🏁 Match complete!</h2><p>Final standings after ${data.target} hands:</p><ol class="standings">`;
+  data.ranked.forEach((r, i) => {
+    const isYou = r.seat === data.youSeat;
+    html += `<li class="${isYou ? "you" : ""}">${i === 0 ? "🏆 " : ""}${escapeHtml(r.emoji)} <b>${escapeHtml(r.name)}</b> — ${r.score} pts${isYou ? " (you)" : ""}</li>`;
   });
-  html += `</ol>`;
-  showModal(html, [
-    { label: "New match", cls: "primary", cb: () => { hideModal(); newMatch(); } },
+  return html + `</ol>`;
+}
+
+function showStandings() {
+  const target = G.matchTarget || MATCH_HANDS;
+  const party = typeof isPartyMode === "function" && isPartyMode();
+  const data = standingsData(0);
+  const actions = [
+    { label: "New match", cls: "primary", cb: () => { hideModal(); newMatch(party && typeof NET !== "undefined" ? NET.matchTarget : undefined); } },
     { label: "Keep playing", cls: "secondary", cb: () => { G.matchTarget = target + MATCH_HANDS; saveMatch(); hideModal(); startHand(); } },
-    { label: "Main menu", cls: "secondary", cb: () => { hideModal(); gotoMenu(); } },
-  ]);
+  ];
+  if (!party) actions.push({ label: "Main menu", cls: "secondary", cb: () => { hideModal(); gotoMenu(); } });
+  showModal(standingsHtml(data), actions);
+  if (party && typeof netBroadcastStandings === "function") netBroadcastStandings(seat => standingsData(seat));
+  if (typeof achRecordMatchEnd === "function") achRecordMatchEnd(data.ranked[0] && data.ranked[0].seat === 0);
+}
+
+/* ---------- Hand recap (Pillar 3 / G6, scoped to solo: current hand only) ----------
+   A free lesson after the fact: your own discards this hand, with the exact
+   shanten (steps-from-ready) transition each one caused — the same metric the
+   coach uses live, just replayed. */
+function showHandRecap(onClose) {
+  const back = onClose || hideModal;   // return to the end-of-hand modal, not close it entirely
+  const entries = G.myDiscardLog || [];
+  if (!entries.length) {
+    showModal(`<h2>📜 Hand recap</h2><p>You didn't get a discard in this hand (instant win, or the hand ended before your turn).</p>`,
+      [{ label: "Back", cls: "primary", cb: back }]);
+    return;
+  }
+  const rows = entries.map((e, i) => {
+    const trend = e.after < e.before ? "✅ closer to ready" : e.after > e.before ? "⚠️ further from ready" : "↔️ unchanged";
+    return `<li>Turn ${i + 1}: discarded <b>${tileShort(e.kind)}</b> — ${e.before} → ${e.after} step${e.after === 1 ? "" : "s"} from ready <span class="log-dim">(${trend})</span></li>`;
+  }).join("");
+  showModal(`<h2>📜 Hand recap</h2><p>Your discards this hand, and how each changed your distance to ready:</p><ol class="standings">${rows}</ol>`,
+    [{ label: "Back", cls: "primary", cb: back }]);
 }
 
 /* ---------- Fatal-error recovery ---------- */
@@ -205,19 +246,72 @@ function logFor(seatIdx, msg, cls = "") {
 
 /* ---------- Match / hand setup ---------- */
 
-function newMatch() {
+function newMatch(target) {
+  G.dailyMode = false;       // a manually-started match always leaves Daily Hand mode
   for (const s of G.seats) s.score = 500;
   G.dealer = 0;
   G.handNumber = 1;
-  G.matchTarget = MATCH_HANDS;
+  G.matchTarget = target || MATCH_HANDS;
+  if (typeof achMatchStart === "function") achMatchStart();
   startHand();
+}
+
+/* ---------- Daily Hand (Pillar 3 / G4) ----------
+   One fixed, seeded deal per calendar day (UTC) — everyone who plays today
+   gets the exact same wall. Single-player only, single hand, never touches
+   the resumable match save. "Try again" re-deals the identical seed, so it's
+   a fixed puzzle you can retry to beat your own best, not a fresh random hand. */
+function dailySeedForToday() {
+  const d = new Date();
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
+}
+function dailyBestKey() { return "meowjong-daily-best"; }
+function getDailyBest(seed) {
+  const raw = storeGet(dailyBestKey());
+  if (!raw) return null;
+  try { const d = JSON.parse(raw); return d && d.seed === seed && Number.isFinite(d.best) ? d.best : null; }
+  catch (e) { return null; }
+}
+function setDailyBest(seed, score) { storeSet(dailyBestKey(), JSON.stringify({ seed, best: score })); }
+
+function startDaily() {
+  G.dailyMode = true;
+  G.seats[0].control = "local";
+  for (let i = 1; i < 4; i++) G.seats[i].control = "ai";
+  for (const s of G.seats) s.score = 500;
+  G.dealer = 0;
+  G.handNumber = 1;
+  G.matchTarget = 1;
+  hideMenu();
+  coachSay("🗓️ <b>Today's Daily Hand!</b> Same deal for everyone who plays today — see how well you can score it.", "🎓");
+  startHand();
+}
+
+function showDailyResult() {
+  const seed = dailySeedForToday();
+  const score = (G.seats[0].score | 0) - 500;
+  const prevBest = getDailyBest(seed);
+  const best = prevBest === null ? score : Math.max(prevBest, score);
+  const isNewBest = prevBest === null || score > prevBest;
+  if (isNewBest) setDailyBest(seed, score);
+  if (typeof achRecordDailyPlay === "function") achRecordDailyPlay(seed);
+  const dateStr = new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  showModal(`<h2>🗓️ Daily Hand — ${escapeHtml(dateStr)}</h2>
+    <p>Today's score: <b>${score}</b> pts${isNewBest ? " — 🎉 <b>new best!</b>" : ""}</p>
+    <p class="log-dim">Best today: <b>${best}</b> pts. ${prevBest === null ? "First run today — nice start!" : "Same deal every retry — see if you can beat it."}</p>
+    <p class="log-dim">Come back tomorrow for a brand new seeded hand.</p>`,
+    [
+      { label: "Try again (same deal)", cls: "primary", cb: () => { hideModal(); startDaily(); } },
+      { label: "Main menu", cls: "secondary", cb: () => { hideModal(); G.dailyMode = false; gotoMenu(); } },
+    ]);
 }
 
 function startHand() {
   G.gen++;
   cancelPendingChoices();   // free any coroutine left awaiting a choice from a prior hand
   saveMatch();              // checkpoint the ledger so a reload can resume this hand
-  G.wall = buildWall();
+  G.myDiscardLog = [];
+  G.wall = G.dailyMode ? buildWall(mulberry32(dailySeedForToday())) : buildWall();
   G.river = [];
   G.lastDiscard = null;
   G.activeSeat = null;
@@ -316,7 +410,12 @@ function nextHand(winnerSeat) {
     log(`${G.seats[G.dealer].name} won as dealer and stays dealer!`);
   }
   G.handNumber++;
-  if (isSoloMatch() && G.handNumber > (G.matchTarget || MATCH_HANDS)) { clearSave(); showStandings(); return; }
+  const target = G.matchTarget || MATCH_HANDS;
+  if (G.handNumber > target) {
+    if (G.dailyMode) { G.dailyMode = false; showDailyResult(); return; }
+    if (isSoloMatch()) { clearSave(); showStandings(); return; }
+    if (typeof isPartyMode === "function" && isPartyMode() && typeof NET !== "undefined" && NET.role === "host") { showStandings(); return; }
+  }
   startHand();
 }
 
@@ -424,9 +523,14 @@ async function interactiveTurnLoop(seatIdx, mode, gen) {
       continue;
     }
     if (choice.type === "discard") {
+      const recapOn = seatIdx === 0 && !(typeof isPartyMode === "function" && isPartyMode());
+      const shantenBefore = recapOn && typeof fjShanten === "function" ? fjShanten(tiles, s.melds, wild) : null;
       const kind = applyInteractiveDiscard(s, choice, tiles);
       if (kind === null) continue;
       pushDiscard(seatIdx, kind);
+      if (recapOn && shantenBefore !== null) {
+        G.myDiscardLog.push({ kind, before: shantenBefore, after: fjShanten(s.hand, s.melds, wild) });
+      }
       const waits = winningKinds(s.hand, s.melds, wild);
       if (waits.length) {
         const parts = waits.map(k => `${tileShort(k)}${k === wild ? " 🥇" : ""} <b>(${liveCount(k, seatIdx)} left)</b>`);
@@ -463,14 +567,32 @@ function applyInteractiveDiscard(s, choice, tiles) {
 
 /* ---------- Turn prompt UI (local player AND party guests) ---------- */
 
+// P3: the 3D table replaces click-to-select with drag-to-discard — the
+// prompt copy has to match whichever input scheme is actually active, and
+// P5's live 3D<->classic fallback (a resize below the desktop threshold, or
+// the toggle itself) can switch schemes mid-turn, so this is also called
+// standalone to refresh a prompt that's already on screen.
+function turnPromptText(mode) {
+  const in3d = typeof SCENE3D !== "undefined" && SCENE3D.on;
+  return mode === "nodraw"
+    ? (in3d ? "You claimed a set — now <b>discard</b>: double-click a tile, or drag it into the river."
+            : "You claimed a set — now <b>discard</b>: click a tile to select it, click it again to throw it.")
+    : (in3d ? "<b>Your turn!</b> Double-click a tile to discard it — or drag it into the river."
+            : "<b>Your turn!</b> Click a tile to select it, then click it again (or press Discard) to throw it.");
+}
+/* Called after scene3dSetEnabled toggles mode WHILE a turn prompt is already
+   showing, so the instructions never go stale mid-turn. */
+function refreshTurnPromptForModeSwitch() {
+  if (!G.awaitingDiscard || !G.turnCtx || G.seats[0].control !== "local") return;
+  setPrompt(turnPromptText(G.turnCtx.mode));
+}
+
 function beginTurnPrompt(ctx, sink) {
   G.awaitingDiscard = true;
   G.selectedIdx = null;
   G.turnCtx = ctx;
   G.choiceSink = sink;
-  setPrompt(ctx.mode === "nodraw"
-    ? "You claimed a set — now <b>discard</b>: click a tile to select it, click it again to throw it."
-    : "<b>Your turn!</b> Click a tile to select it, then click it again (or press Discard) to throw it.");
+  setPrompt(turnPromptText(ctx.mode));
   refreshTurnActions();
   renderAll();
   if (ctx.mode !== "nodraw" && typeof fxTurnStart === "function") fxTurnStart();
@@ -573,7 +695,7 @@ async function aiTurnLoop(seat, mode, gen) {
       }
     }
   }
-  const d = chooseDiscard(s.hand, wild);
+  const d = chooseDiscardSmart(seat);
   removeN(s.hand, d.kind, 1);
   sortHand(s.hand);
   pushDiscard(seat, d.kind);
@@ -606,9 +728,9 @@ async function resolveClaims(discarder, kind, gen) {
     if (winsIt) { claims.push({ seat, claimType: "win", type: "win" }); continue; }
     if (isGoldDiscard) continue;
     if (canKongFromDiscard(s.hand, kind, wild) && G.wall.length) { claims.push({ seat, claimType: "kong", type: "meld", kind }); continue; }
-    if (aiWantsPung(s.hand, kind, wild)) { claims.push({ seat, claimType: "pung", type: "meld", kind }); continue; }
+    if (seatWantsPung(seat, kind)) { claims.push({ seat, claimType: "pung", type: "meld", kind }); continue; }
     if (seat === (discarder + 1) % 4) {
-      const chow = aiWantsChow(s.hand, kind, wild);
+      const chow = seatWantsChow(seat, kind);
       if (chow) claims.push({ seat, claimType: "chow", type: "meld", kind, tiles: chow.tiles });
     }
   }
@@ -873,6 +995,7 @@ async function doWin(seat, winTile, selfDraw, discarder, special = {}) {
   setPrompt("");
   renderAll();
   if (typeof fxWin === "function") fxWin(seat === 0, threeGold || !!special.qiangJin);
+  if (typeof scene3dWinReaction === "function") scene3dWinReaction();
   if (typeof emoteCatReact === "function") {
     emoteCatReact(seat, "win");
     if (!selfDraw && discarder !== null && discarder !== undefined) emoteCatReact(discarder, "dealin");
@@ -893,14 +1016,42 @@ async function doWin(seat, winTile, selfDraw, discarder, special = {}) {
   };
   log(`<b>${s.emoji} ${s.name} wins ${endHowText(common)}</b>`, "log-important");
 
+  if (typeof statsRecordHandEnd === "function") {
+    statsRecordHandEnd({
+      youWon: seat === 0,
+      selfDraw: seat === 0 && selfDraw,
+      instantWin: seat === 0 && (threeGold || !!special.qiangJin),
+      flowers: seat === 0 ? s.flowers.length : 0,
+      points: seat === 0 ? score.total : 0,
+      dealtIn: seat !== 0 && discarder === 0,
+    });
+  }
+  if (typeof achRecordHandEnd === "function") {
+    achRecordHandEnd({
+      youWon: seat === 0,
+      youLost: seat !== 0,
+      selfDraw: seat === 0 && selfDraw,
+      howType,
+      flowers: seat === 0 ? s.flowers.length : 0,
+      dealtIn: seat !== 0 && discarder === 0,
+    });
+  }
+
   // M10: give the table celebration (shake / glow / confetti) a beat to land,
   // then run the staged scoring ceremony. Presentation-only delay — all state
   // is already committed above, and guests are notified on the same beat.
   const revealEndModal = () => {
-    showEndModal(endModalHtml(Object.assign({ youWin: s.control === "local" }, common)), [
+    const endHtml = endModalHtml(Object.assign({ youWin: s.control === "local" }, common));
+    const actions = [
       { label: "Next hand", cls: "primary", cb: () => { hideModal(); nextHand(seat); } },
       { label: "New match", cls: "secondary", cb: () => { hideModal(); newMatch(); } },
-    ]);
+    ];
+    if (!(typeof isPartyMode === "function" && isPartyMode()) && G.myDiscardLog && G.myDiscardLog.length) {
+      // "Back" returns to THIS same modal (plain showModal — no replayed win ceremony)
+      actions.push({ label: "📜 Recap", cls: "secondary", cb: () => showHandRecap(() => showModal(endHtml, actions)) });
+    }
+    showEndModal(endHtml, actions);
+    if (typeof fxWinModalConfetti === "function") fxWinModalConfetti(s.control === "local", threeGold || !!special.qiangJin);
     if (typeof netBroadcastEndModal === "function") {
       netBroadcastEndModal(guestSeat => Object.assign({ youWin: guestSeat === seat }, common));
     }
@@ -916,8 +1067,16 @@ function drawGame() {
   setPrompt("");
   renderAll();
   log("<b>The wall is empty — this hand is a draw.</b>", "log-important");
+  if (typeof scene3dWinReaction === "function") scene3dWinReaction();
   if (typeof emoteCatReact === "function") emoteCatReact(1 + Math.floor(Math.random() * 3), "draw");
-  showModal(endModalHtml({ kind: "draw" }), [{ label: "Next hand", cls: "primary", cb: () => { hideModal(); nextHand(null); } }]);
+  if (typeof statsRecordHandEnd === "function") statsRecordHandEnd({});
+  if (typeof achRecordHandEnd === "function") achRecordHandEnd({});   // a draw — no win, no loss, streak untouched
+  const drawHtml = endModalHtml({ kind: "draw" });
+  const drawActions = [{ label: "Next hand", cls: "primary", cb: () => { hideModal(); nextHand(null); } }];
+  if (!(typeof isPartyMode === "function" && isPartyMode()) && G.myDiscardLog && G.myDiscardLog.length) {
+    drawActions.push({ label: "📜 Recap", cls: "secondary", cb: () => showHandRecap(() => showModal(drawHtml, drawActions)) });
+  }
+  showModal(drawHtml, drawActions);
   if (typeof netBroadcastEndModal === "function") {
     netBroadcastEndModal(() => ({ kind: "draw" }));
   }
@@ -1027,6 +1186,41 @@ window.addEventListener("DOMContentLoaded", () => {
     G.autoCoach = e.target.checked;
     coachSay(G.autoCoach ? "I'm back! I'll comment as you play. 🐾" : "Going quiet — the Hint button still works if you need me. 🤫");
   });
+  // P2 · first-person 3D table (beta): lazy-loads the vendored three.js on
+  // first enable; the engine and all prompts are shared with the classic board.
+  // P5: desktop-first — re-evaluated on resize (not just at boot), so shrinking
+  // the window below the threshold mid-session falls back to the DOM board
+  // live instead of leaving a half-working scene running (scene3dSetEnabled
+  // re-checks this defensively too, in case of a stale "on" flag from a
+  // synced localStorage on a device this was never verified on).
+  const t3d = $("#toggle-3d");
+  if (t3d && typeof scene3dSetEnabled === "function") {
+    const label = t3d.closest(".toggle");
+    let attached = false;
+    const applyDeviceGate = () => {
+      const ok = typeof scene3dDeviceOk !== "function" || scene3dDeviceOk();
+      t3d.disabled = !ok;
+      if (label) label.title = ok
+        ? "First-person 3D table (beta): sit AT the table and drag tiles to discard. Desktop + WebGL; the classic board stays the default."
+        : "The 3D table needs a larger screen and a mouse — it's available on desktop.";
+      if (!ok) {
+        t3d.checked = false;
+        if (typeof SCENE3D !== "undefined" && SCENE3D.on) scene3dSetEnabled(false);   // live fallback
+        return;
+      }
+      if (!attached) {
+        attached = true;
+        t3d.addEventListener("change", e => scene3dSetEnabled(e.target.checked));
+        if (storeGet("meowjong-3d") === "1") { t3d.checked = true; scene3dSetEnabled(true); }
+      }
+    };
+    applyDeviceGate();
+    window.addEventListener("resize", applyDeviceGate);
+    // belt-and-braces: some environments miss/reorder resize events — re-check
+    // the moment the player actually opens the Options popover to look at it
+    const hudSet = $("#hud-settings");
+    if (hudSet) hudSet.addEventListener("toggle", applyDeviceGate);
+  }
   // M6/M7.5: Professor Paws floats bottom-right and collapses to a chat-bubble
   // tab. On phones the expanded card covers the hand + action dock, so it
   // starts collapsed on narrow screens (unless the player set a preference),
@@ -1066,6 +1260,12 @@ window.addEventListener("DOMContentLoaded", () => {
   $("#menu-strategy").addEventListener("click", () => openTutorial(0, "strategy"));
   const rules = $("#menu-rules");
   if (rules) rules.addEventListener("click", showHouseRules);
+  const dailyBtn = $("#menu-daily");
+  if (dailyBtn) dailyBtn.addEventListener("click", () => startDaily());
+  const statsBtn = $("#menu-stats");
+  if (statsBtn) statsBtn.addEventListener("click", () => { if (typeof statsShow === "function") statsShow(); });
+  const trophyBtn = $("#menu-trophies");
+  if (trophyBtn) trophyBtn.addEventListener("click", () => { if (typeof achShow === "function") achShow(); });
 
   coachSay("Welcome to <b>FJ mahjong</b>! Winds are lucky flowers, and a flipped <b>gold tile</b> is wild. New here? Click <b>🎓 Tutorial</b>. 🐱");
   buildLegend();

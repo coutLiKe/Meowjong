@@ -19,12 +19,12 @@
   <meta name="twitter:title" content="Meowjong — Learn &amp; Play Fujian Mahjong" />
   <meta name="twitter:description" content="Authentic 4-player FJ mahjong with café-cat opponents and a coach that teaches you as you play. Free, no install, right in your browser." />
   <meta name="twitter:image" content="https://coutlike.github.io/meowjong/assets/og-image.png" />
-  <link rel="stylesheet" href="css/style.css?v=p24" />
+  <link rel="stylesheet" href="css/style.css?v=p56" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Crect x='3' y='3' width='58' height='66' rx='12' fill='%23fffdf4' stroke='%23c9b993' stroke-width='4'/%3E%3Cpath d='M6 52 h52 v8 a10 10 0 0 1 -10 10 h-32 a10 10 0 0 1 -10 -10 z' fill='%237fa877'/%3E%3Ccircle cx='32' cy='31' r='16' fill='none' stroke='%231e7a3c' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='8.5' fill='none' stroke='%23b3232a' stroke-width='5'/%3E%3Ccircle cx='32' cy='31' r='3' fill='%23b3232a'/%3E%3C/svg%3E" />
 </head>
 <body>
   <!-- M6/M7.1 · Top HUD bar, decluttered: brand · round/wall status · learn tabs ·
-       an ⚙ Options popover (peek/labels/coach/fx) · party/re-deal/menu -->
+       an ⚙ Options popover (peek/labels/coach/fx · 3D-table beta) · party/re-deal/menu -->
   <header id="hud">
     <div class="hud-brand">
       <h1><span class="brand-slot brand-sm"></span> Meowjong</h1>
@@ -65,6 +65,9 @@
             <input type="checkbox" id="toggle-sound" /> <span class="ico" data-icon="volume"></span>Sound
             <input type="range" id="sound-volume" min="0" max="100" value="60" aria-label="Sound volume" />
           </label>
+          <label class="toggle" title="First-person 3D table (beta): sit AT the table — double-click or drag tiles to discard. Desktop + WebGL; the classic board stays the default.">
+            <input type="checkbox" id="toggle-3d" /> <span class="ico" data-icon="eye"></span>3D table (beta)
+          </label>
         </div>
       </details>
       <button id="btn-party" title="Play online with friends using a room code"><span class="ico" data-icon="users"></span>Party</button>
@@ -80,6 +83,7 @@
     <div id="table">
       <section class="seat seat-top opp" id="opp-2" title="Sits across the table">
         <div class="opp-top">
+          <span class="opp-portrait" aria-hidden="true"></span>
           <span class="opp-name"></span>
           <span class="opp-wind"></span>
           <span class="opp-score"></span>
@@ -91,6 +95,7 @@
 
       <section class="seat seat-left opp" id="opp-3" title="Plays before you — you can Chi from them!">
         <div class="opp-top">
+          <span class="opp-portrait" aria-hidden="true"></span>
           <span class="opp-name"></span>
           <span class="opp-wind"></span>
           <span class="opp-score"></span>
@@ -102,6 +107,7 @@
 
       <section class="seat seat-right opp" id="opp-1" title="Plays right after you">
         <div class="opp-top">
+          <span class="opp-portrait" aria-hidden="true"></span>
           <span class="opp-name"></span>
           <span class="opp-wind"></span>
           <span class="opp-score"></span>
@@ -113,6 +119,7 @@
 
       <!-- The square felt table: wall + gold marker + discard river -->
       <section id="center">
+        <div id="dust-motes" aria-hidden="true"></div>
         <div id="wall-row" aria-hidden="true"></div>
         <div id="gold-line">🥇 <b>GOLD (wild):</b> <span id="gold-slot"></span></div>
         <div class="river-label">Discard pile — the newest tile glows:</div>
@@ -187,6 +194,9 @@
       <button class="menu-btn" id="menu-strategy"><span class="mb-head"><span class="ico" data-icon="target"></span>Strategy School</span><span>waits, golds, flowers &amp; defense</span></button>
     </div>
     <div class="menu-foot">Winds are flowers 🌸 · the flipped gold 🥇 is wild · 4 sets + a pair, then call <b>Hú! 胡</b></div>
+    <button class="menu-link" id="menu-daily">🗓️ Daily Hand — one seeded deal, same for everyone today</button>
+    <button class="menu-link" id="menu-stats">📊 My stats</button>
+    <button class="menu-link" id="menu-trophies">🏆 Trophy Room</button>
     <button class="menu-link" id="menu-rules">📋 House rules &amp; scoring</button>
     <a class="menu-link" href="https://github.com/coutLiKe/meowjong/issues" target="_blank" rel="noopener">💬 Feedback &amp; bug reports</a>
   </div>
@@ -200,18 +210,21 @@
 
   <!-- PeerJS is vendored (js/vendor/peerjs.min.js) and lazy-loaded on first Party use,
        so the boot path never depends on the network. -->
-  <script src="js/icons.js?v=p24"></script>
-  <script src="js/tiles.js?v=p24"></script>
-  <script src="js/faces.js?v=p24"></script>
-  <script src="js/engine.js?v=p24"></script>
-  <script src="js/ai.js?v=p24"></script>
-  <script src="js/net.js?v=p24"></script>
-  <script src="js/ui.js?v=p24"></script>
-  <script src="js/analyst.js?v=p24"></script>
-  <script src="js/tutorial.js?v=p24"></script>
-  <script src="js/fx.js?v=p24"></script>
-  <script src="js/emotes.js?v=p24"></script>
-  <script src="js/sound.js?v=p24"></script>
-  <script src="js/main.js?v=p24"></script>
+  <script src="js/icons.js?v=p56"></script>
+  <script src="js/tiles.js?v=p56"></script>
+  <script src="js/faces.js?v=p56"></script>
+  <script src="js/engine.js?v=p56"></script>
+  <script src="js/ai.js?v=p56"></script>
+  <script src="js/net.js?v=p56"></script>
+  <script src="js/ui.js?v=p56"></script>
+  <script src="js/analyst.js?v=p56"></script>
+  <script src="js/stats.js?v=p56"></script>
+  <script src="js/scene3d.js?v=p56"></script>
+  <script src="js/achievements.js?v=p56"></script>
+  <script src="js/tutorial.js?v=p56"></script>
+  <script src="js/fx.js?v=p56"></script>
+  <script src="js/emotes.js?v=p56"></script>
+  <script src="js/sound.js?v=p56"></script>
+  <script src="js/main.js?v=p56"></script>
 </body>
 </html>

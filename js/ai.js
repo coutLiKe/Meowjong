@@ -249,6 +249,160 @@ function aiWantsChow(hand, k, wildKind = -1) {
   return best;
 }
 
+/* ---------- Full-strength AI (every cat, every game — no difficulty dial) ----------
+   Generalizes the Analyst's Layer 1-2 math (js/analyst.js: anThreats/anRisk/anWinProb,
+   written for seat 0 only) to an arbitrary seat, so opponent cats decide discards and
+   claims from the SAME exact-shanten/ukeire/danger engine that drives the human's
+   coach — not a separate, weaker heuristic. Layer 3 (Monte Carlo rollouts) stays
+   human-only: it's UI-paced (time-sliced via setTimeout) and not worth the per-turn
+   cost here, since Layer 1-2 EV already captures win-probability-vs-deal-in-risk. */
+
+/* Personality — flavor, not strength (Pillar 1 / G2). Every cat runs the exact
+   same engine and sees the exact same tiles (symmetric randomness); a fixed
+   weight bias per named cat only tilts WHICH good line it prefers, never makes
+   it play worse. riskAversion scales the EV's danger penalty (>1 = folds
+   earlier, <1 = pushes further); claimBias scales the bar a claim must clear
+   to be taken (>1 = claims more readily, <1 = choosier); flowerLove scales the
+   win-value term (>1 = leans into big flower-payout hands over raw speed). */
+const CAT_PERSONALITIES = {
+  "Mochi":            { riskAversion: 0.72, claimBias: 1.0,  flowerLove: 1.0 },  // aggressive chaser
+  "Biscuit":           { riskAversion: 1.35, claimBias: 0.8,  flowerLove: 1.0 },  // defensive folder
+  "Captain Whiskers":  { riskAversion: 1.0,  claimBias: 1.0,  flowerLove: 1.35 }, // flower-hoarder
+};
+const DEFAULT_PERSONALITY = { riskAversion: 1.0, claimBias: 1.0, flowerLove: 1.0 };
+function personalityOf(seatIdx) {
+  const s = G.seats[seatIdx];
+  return (s && CAT_PERSONALITIES[s.name]) || DEFAULT_PERSONALITY;
+}
+
+/* Public threat profile of the three OTHER seats, from seatIdx's point of view.
+   Everything read here (melds, flowers, river) is public information — legal for
+   any seat, including an AI seat, to use; no hidden state is touched. */
+function seatThreats(seatIdx) {
+  return [1, 2, 3].map(off => {
+    const seat = (seatIdx + off) % 4;
+    const s = G.seats[seat];
+    const melds = s.melds.length;
+    const fl = (s.flowers || []).length;
+    const total = fjScore(s, {}).total;
+    const level = Math.min(1, melds * 0.28 + fl * 0.05);
+    const meldSuits = [0, 0, 0];
+    s.melds.forEach(m => { if (m.kind < 27) meldSuits[suitOf(m.kind)]++; });
+    const discSuits = [0, 0, 0];
+    G.river.forEach(d => { if (d.seat === seat && d.kind < 27) discSuits[suitOf(d.kind)]++; });
+    const hoard = [0, 1, 2].filter(su => meldSuits[su] >= 2 && discSuits[su] === 0);
+    return { seat, melds, fl, total, level, hoard, discSuits };
+  });
+}
+
+/* Deal-in risk (0..1) of discarding `kind`, given seatIdx's view of the threats. */
+function seatRisk(kind, threats, seatIdx) {
+  const vis = visibleKindCounts(seatIdx);
+  const inRiver = G.river.some(d => d.kind === kind);
+  if (inRiver || vis[kind] >= 3) return { p: 0.02 };
+  const r = rankOf(kind);
+  const base = (r >= 4 && r <= 6) ? 0.17 : (r === 3 || r === 7) ? 0.13 : 0.08;
+  let p = 0.02;
+  for (const t of threats) {
+    if (t.level < 0.15) continue;
+    let pt = base * (0.4 + t.level);
+    if (t.hoard.includes(suitOf(kind))) pt = Math.max(pt, 0.22 + 0.25 * t.level);
+    else if (t.discSuits[suitOf(kind)] > 1) pt *= 0.55;
+    if (pt > p) p = pt;
+  }
+  return { p: Math.min(0.5, p) };
+}
+
+/* Win probability grounded in acceptance width, mirroring analyst.js's anWinProb
+   but from an arbitrary seat's own view of unseen tiles. */
+function seatWinProb(sh, ukeire, outs, seatIdx) {
+  if (sh === 0) return Math.min(0.9, 0.12 + 0.05 * outs);
+  const drawsLeft = Math.max(1, Math.min(18, Math.floor((G.wall ? G.wall.length : 40) / 4)));
+  let unseen = 0;
+  for (let k = 0; k < 27; k++) unseen += liveCount(k, seatIdx);
+  unseen = Math.max(8, unseen);
+  const adv = Math.min(0.85, ukeire / unseen);
+  const need = sh + 1;
+  let p = 0;
+  for (let i = need; i <= drawsLeft; i++) p += _binom(drawsLeft, i) * Math.pow(adv, i) * Math.pow(1 - adv, drawsLeft - i);
+  return Math.max(0.005, Math.min(0.9, p));
+}
+
+/* The AI's real discard decision: exact shanten first (never sacrifice speed),
+   then EV (win% × payout − deal-in risk × opponents' payout) as the tie-break —
+   the same ranking Professor Paws' Hint gives the human. Golds are never candidates. */
+function chooseDiscardSmart(seatIdx) {
+  const seat = G.seats[seatIdx];
+  const wild = wildOf();
+  const hand = seat.hand;
+  const threats = seatThreats(seatIdx);
+  const maxPay = Math.max(0, ...threats.map(t => t.total));
+  const pers = personalityOf(seatIdx);
+  const myWinPts = fjScore(seat, { selfDraw: true }).total * pers.flowerLove;
+  let best = null;
+  const seen = new Set();
+  for (const k of hand) {
+    if (k === wild || seen.has(k)) continue;
+    seen.add(k);
+    const rest = hand.slice();
+    rest.splice(rest.indexOf(k), 1);
+    const uke = fjUkeire(rest, seat.melds, wild);
+    let outs = 0;
+    if (uke.shanten === 0) {
+      outs = uke.total;
+      if (wild >= 0 && !uke.tiles.some(t => t.kind === wild)) outs += liveCount(wild, seatIdx);
+    }
+    const pWin = seatWinProb(uke.shanten, uke.total, outs, seatIdx);
+    const risk = seatRisk(k, threats, seatIdx);
+    const ev = pWin * myWinPts * 3 - risk.p * maxPay * 2 * pers.riskAversion;
+    if (!best || uke.shanten < best.sh || (uke.shanten === best.sh && ev > best.ev)) {
+      best = { kind: k, sh: uke.shanten, ev };
+    }
+  }
+  // pathological all-gold hand: give one up (matches chooseDiscard's contract)
+  if (!best) return { kind: hand[0] };
+  return best;
+}
+
+/* Claim discipline: only take a pung if it doesn't cost shanten and either
+   advances it or meaningfully widens acceptance — never claim on reflex. */
+function seatWantsPung(seatIdx, k) {
+  const seat = G.seats[seatIdx];
+  const wild = wildOf();
+  if (!canPung(seat.hand, k, wild)) return false;
+  const before = fjUkeire(seat.hand, seat.melds, wild);
+  const rest = seat.hand.slice();
+  rest.splice(rest.indexOf(k), 1);
+  rest.splice(rest.indexOf(k), 1);
+  const melds = seat.melds.concat([{ type: "pung", kind: k }]);
+  const after = fjUkeire(rest, melds, wild);
+  if (after.shanten > before.shanten) return false;
+  const bar = before.total / personalityOf(seatIdx).claimBias;
+  if (after.shanten === before.shanten && after.total <= bar) return false;
+  return true;
+}
+
+function seatWantsChow(seatIdx, k) {
+  const seat = G.seats[seatIdx];
+  const wild = wildOf();
+  const opts = chowOptions(seat.hand, k, wild);
+  if (!opts.length) return null;
+  const before = fjUkeire(seat.hand, seat.melds, wild);
+  const bar = before.total / personalityOf(seatIdx).claimBias;
+  let best = null;
+  for (const [a, b] of opts) {
+    const rest = seat.hand.slice();
+    rest.splice(rest.indexOf(a), 1);
+    rest.splice(rest.indexOf(b), 1);
+    const melds = seat.melds.concat([{ type: "chow", kind: Math.min(a, b, k) }]);
+    const after = fjUkeire(rest, melds, wild);
+    if (after.shanten > before.shanten) continue;
+    if (after.shanten === before.shanten && after.total <= bar) continue;
+    if (!best || after.total > best.total) best = { tiles: [a, b], total: after.total };
+  }
+  return best ? { tiles: best.tiles } : null;
+}
+
 /* ---------- Table awareness ---------- */
 
 /* Copies of each kind visible from seatIdx's view: river, melds, flowers,

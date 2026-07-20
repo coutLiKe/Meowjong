@@ -180,6 +180,9 @@ function _emotePill(seat) {
 
 /* Show the head over a seat pill. Pure presentation — no log, no network. */
 function emoteShow(seat, id) {
+  // P4: the 3D table's cat portraits react too — independent of the 2D pill
+  // below, which is display:none (and so a zero-size early-return) in mode3d.
+  if (typeof scene3dPortraitReact === "function") scene3dPortraitReact(seat, id);
   const def = EMOTES[id];
   const pill = _emotePill(seat);
   if (!def || !pill || typeof pill.getBoundingClientRect !== "function") return;

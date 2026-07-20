@@ -52,12 +52,28 @@ function tileShort(k) {
   return DRAGONS[k - 31].char;
 }
 
-/* Build & shuffle a fresh 124-tile FJ wall (suits + winds, no dragons) */
-function buildWall() {
+/* Seedable PRNG (mulberry32) — deterministic, single-player-only use (the Daily
+   Hand mode). Live and party play never pass a seed, so buildWall() keeps using
+   Math.random() exactly as before; nothing about live determinism changes. */
+function mulberry32(seed) {
+  let a = seed | 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Build & shuffle a fresh 124-tile FJ wall (suits + winds, no dragons).
+   `rand`, if given, replaces Math.random() (e.g. a mulberry32 instance) for a
+   fully deterministic, reproducible deal — used only by Daily Hand. */
+function buildWall(rand) {
+  const rng = typeof rand === "function" ? rand : Math.random;
   const wall = [];
   for (let k = 0; k <= 30; k++) for (let c = 0; c < 4; c++) wall.push(k);
   for (let i = wall.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [wall[i], wall[j]] = [wall[j], wall[i]];
   }
   return wall;

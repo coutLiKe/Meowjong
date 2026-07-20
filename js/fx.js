@@ -66,6 +66,33 @@ function fxInit() {
     sel.addEventListener("change", e => fxSetLevel(e.target.value));
   }
   fxInitTilt();
+  fxInitDustMotes();
+}
+
+/* Slow-drifting dust motes in the lamp light over the felt — the kind of
+   thing a real room under a hanging lamp has and a flat UI never does.
+   Generated once (positions/timings are randomized but then fixed, driven
+   entirely by CSS keyframes — no per-frame JS cost). Visibility is CSS-gated
+   to Full 3D + motion-on, so toggling fx level later needs no regeneration. */
+function fxInitDustMotes() {
+  const host = document.getElementById("dust-motes");
+  if (!host || host.childElementCount) return;
+  const N = 7;
+  for (let i = 0; i < N; i++) {
+    const m = document.createElement("span");
+    m.className = "dust-mote";
+    const left = 15 + Math.random() * 70;         // % — stay within the lit pool
+    const delay = (Math.random() * 10).toFixed(2);
+    const dur = (9 + Math.random() * 7).toFixed(2);
+    const drift = (Math.random() * 30 - 15).toFixed(1);
+    const size = (1.5 + Math.random() * 2).toFixed(1);
+    m.style.left = left + "%";
+    m.style.setProperty("--drift", drift + "px");
+    m.style.setProperty("--size", size + "px");
+    m.style.animationDelay = delay + "s";
+    m.style.animationDuration = dur + "s";
+    host.appendChild(m);
+  }
 }
 
 /* ---------- small helpers ---------- */
@@ -279,6 +306,11 @@ function fxTurnStart() {
 
 function fxWin(youWin, special) {
   if (typeof sndWin === "function") sndWin(youWin, special);
+  // P3: #table/#hand are display:none in the 3D mode — these board-anchored
+  // effects (and the confetti canvas they'd host) would be invisible no-ops;
+  // scene3dWinReaction() gives that mode its own win moment instead.
+  const in3d = typeof SCENE3D !== "undefined" && SCENE3D.on;
+  if (in3d) return;
   const center = document.getElementById("center");
   if (fxMotion()) fxPulse(center, "fx-winshake", 700);
   const hand = document.getElementById("hand");
@@ -325,6 +357,61 @@ function fxConfetti() {
     if (life < 1600) fxReq(frame); else cv.remove();
   }
   fxReq(frame);
+}
+
+/* A SECOND, screen-wide confetti burst timed to the win MODAL's reveal, not
+   the board. The board's fxConfetti() above fires the instant the win is
+   detected — up to 900ms before the modal appears (the staged-reveal delay in
+   main.js's doWin) — so by the time you're actually reading your score it has
+   already finished, hidden behind #table. This one is layered ABOVE the modal
+   (z-index higher than #modal-overlay) and falls from the top of the whole
+   viewport, so the celebration is visible WHILE you read the total, not spent
+   on an empty board beforehand. `big` (instant wins) gets more particles and
+   a longer fall. */
+function fxConfettiModal(big) {
+  const cv = document.createElement("canvas");
+  cv.className = "fx-confetti fx-confetti-modal";
+  cv.width = Math.max(1, window.innerWidth | 0);
+  cv.height = Math.max(1, window.innerHeight | 0);
+  document.body.appendChild(cv);
+  const ctx = cv.getContext("2d");
+  const colors = big
+    ? ["#ffd65a", "#ffb85c", "#e8895a", "#fff3d6", "#c96b3d"]
+    : ["#e8895a", "#7fa877", "#ffd65a", "#c96b3d", "#6b5ea8", "#fff3d6"];
+  const N = big ? 220 : 130;
+  const dur = big ? 3200 : 2400;
+  const P = [];
+  for (let i = 0; i < N; i++) P.push({
+    x: cv.width * Math.random(),
+    y: -20 - Math.random() * cv.height * 0.5,
+    vx: (Math.random() - 0.5) * 3,
+    vy: 2.4 + Math.random() * 3,
+    g: 0.03 + Math.random() * 0.03,
+    s: 5 + Math.random() * (big ? 8 : 6),
+    rot: Math.random() * 6.28,
+    vr: (Math.random() - 0.5) * 0.3,
+    c: colors[(Math.random() * colors.length) | 0],
+  });
+  const t0 = performance.now();
+  function frame(t) {
+    const life = t - t0;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const p of P) {
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, 1 - life / dur);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+      ctx.restore();
+    }
+    if (life < dur) fxReq(frame); else cv.remove();
+  }
+  fxReq(frame);
+}
+
+/* Gate identical to fxWin's board burst — called from doWin's staged reveal
+   (main.js) once the modal is actually on screen. */
+function fxWinModalConfetti(youWin, big) {
+  if (youWin && fxMotion() && !FX.reduced) fxConfettiModal(!!big);
 }
 
 /* ============================================================
