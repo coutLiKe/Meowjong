@@ -1211,7 +1211,10 @@ window.addEventListener("DOMContentLoaded", () => {
       if (!attached) {
         attached = true;
         t3d.addEventListener("change", e => scene3dSetEnabled(e.target.checked));
-        if (storeGet("meowjong-3d") === "1") { t3d.checked = true; scene3dSetEnabled(true); }
+        // Default to the 3D table now, unless this player has explicitly turned
+        // it off before (stored "0") — scene3dSetEnabled itself still falls back
+        // to the classic board live if the device gate or the three.js load fails.
+        if (storeGet("meowjong-3d") !== "0") { t3d.checked = true; scene3dSetEnabled(true); }
       }
     };
     applyDeviceGate();
