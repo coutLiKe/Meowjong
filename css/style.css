@@ -1649,3 +1649,12 @@ body.mode3d #player-panel {
 }
 body.mode3d #player-top, body.mode3d #dock { pointer-events: auto; }
 body.mode3d #prompt { text-shadow: 0 1px 3px rgba(40, 26, 14, 0.55); color: #fff7ea; }
+/* the "You" status pill sits opaque on top of the scene in the classic
+   board's normal document flow, but floats loose over the felt/wall here —
+   a solid card reads like a sticker pasted on; softening it toward glass
+   lets the table show through while staying legible against any background */
+body.mode3d #player-top {
+  background: rgba(255, 250, 241, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
