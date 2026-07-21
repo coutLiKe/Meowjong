@@ -45,20 +45,21 @@ Tests: `node tests/run.js` (or `npm test`).
 - Chi only from the previous player; peng/gang from anyone; concealed/added gangs with
   back-wall replacement draws.
 
-## First-person 3D table (beta) 🀄
+## First-person 3D table 🀄
 
-Sit AT the table: turn ⚙ Options → **3D table (beta)** on to play from a real
-seated perspective — competition-size tiles, board-game lighting, and a real
-felt-and-wood table you lean into. Drag a tile from your rack into the river
-to discard; every claim/kong/win prompt, Professor Paws, and the coach's
-analysis are the same panels as the classic board, just floating over the
-scene. Same rules, same AI, same save — this is a presentation-and-input
-layer over the identical game, not a separate mode with its own logic.
+Sit AT the table — this is the default view: a real seated perspective with
+competition-size tiles, board-game lighting, and a real felt-and-wood table
+you lean into. Drag a tile from your rack into the river to discard; every
+claim/kong/win prompt, Professor Paws, and the coach's analysis are the same
+panels as the classic board, just floating over the scene. Same rules, same
+AI, same save — this is a presentation-and-input layer over the identical
+game, not a separate mode with its own logic. Prefer the flat top-down
+board? Turn ⚙ Options → **3D table** off.
 
-- **Desktop + mouse only, by design.** The toggle disables itself (and falls
-  back live if you resize below it) on a narrow or touch-primary screen —
-  the classic board is the tested, always-available, fully keyboard/
-  screen-reader-accessible path.
+- **Desktop + mouse only, by design.** It's on by default but disables
+  itself (and falls back live if you resize below the threshold) on a
+  narrow or touch-primary screen — the classic board is the tested,
+  always-available, fully keyboard/screen-reader-accessible fallback.
 - **Hidden information stays hidden.** Opponents' concealed tiles are never
   sent to the renderer as anything but a count; the camera is limited to a
   realistic seated range that a scripted sweep across its entire reachable

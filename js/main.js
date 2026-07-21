@@ -122,8 +122,9 @@ function showHouseRules() {
     <p><b>A match is ${MATCH_HANDS} hands</b>, then final standings (you can keep playing).</p>
     <p class="log-dim"><b>Simplified for approachability:</b> chi only from the player on your
     left; no robbing-the-kong; the dealer isn't eligible for 抢金; no reserved dead wall.</p>
-    <p class="log-dim"><b>🀄 3D table (beta):</b> the same rules and engine, just a first-person
-    seated view (⚙ Options). Drag to discard instead of click; desktop + mouse only.</p>`,
+    <p class="log-dim"><b>🀄 3D table:</b> on by default — the same rules and engine, just a
+    first-person seated view (⚙ Options to turn off). Drag to discard instead of click;
+    desktop + mouse only.</p>`,
     [{ label: "Got it", cls: "primary", cb: hideModal }]);
 }
 
@@ -1186,8 +1187,8 @@ window.addEventListener("DOMContentLoaded", () => {
     G.autoCoach = e.target.checked;
     coachSay(G.autoCoach ? "I'm back! I'll comment as you play. 🐾" : "Going quiet — the Hint button still works if you need me. 🤫");
   });
-  // P2 · first-person 3D table (beta): lazy-loads the vendored three.js on
-  // first enable; the engine and all prompts are shared with the classic board.
+  // P2 · first-person 3D table: lazy-loads the vendored three.js on first
+  // enable; the engine and all prompts are shared with the classic board.
   // P5: desktop-first — re-evaluated on resize (not just at boot), so shrinking
   // the window below the threshold mid-session falls back to the DOM board
   // live instead of leaving a half-working scene running (scene3dSetEnabled
@@ -1201,7 +1202,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const ok = typeof scene3dDeviceOk !== "function" || scene3dDeviceOk();
       t3d.disabled = !ok;
       if (label) label.title = ok
-        ? "First-person 3D table (beta): sit AT the table and drag tiles to discard. Desktop + WebGL; the classic board stays the default."
+        ? "First-person 3D table: sit AT the table and drag tiles to discard. Desktop + WebGL; on by default, turn off for the classic board."
         : "The 3D table needs a larger screen and a mouse — it's available on desktop.";
       if (!ok) {
         t3d.checked = false;
