@@ -948,12 +948,13 @@ function giveHint() {
   if (hint.win || hint.kind === null) {
     G.suggestKind = null;
     coachSay(hint.message, "🙀");
-    renderHand();
+    renderAll();   // renderHand() alone never reaches scene3dSync() — the 3D table
+                    // would silently miss the suggested-tile glow (and its clear)
     return;
   }
   G.suggestKind = hint.kind;
   coachSay(`I'd discard <b>${tileShort(hint.kind)}</b> (it's glowing in your hand).<br><br>${hint.message}`, "🎓");
-  renderHand();
+  renderAll();
 }
 
 /* ---------- Hand end ---------- */

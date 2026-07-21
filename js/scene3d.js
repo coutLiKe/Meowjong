@@ -63,6 +63,7 @@ const SCENE3D = {
   hand: [], oppRacks: [[], [], []], river: [], wall: [], publicTiles: [], dust: [],
   goldMesh: null, turnDisc: null, lamp: null,
   faceMats: new Map(), tweens: [],
+  hintTiles: [],   // this sync's hand meshes matching the coach's suggested discard kind
   dragging: null, hovered: null, lastDrop: null,
   cam: { az: 0, pol: Math.PI * 0.33, dist: 0.72, tAz: 0, tPol: Math.PI * 0.33, tDist: 0.72 },
   maxWall: 1,
@@ -817,6 +818,7 @@ function scene3dSync() {
 
   // YOUR HAND — display order must match main.js's `tiles` (hand + drawn last)
   s3Clear(SCENE3D.hand);
+  SCENE3D.hintTiles.length = 0;
   const n = P.myTiles.length + (P.myDrawn != null ? 1 : 0);
   const spread = i => (i - (n - 1) / 2) * (S3_TILE_W + S3_GAP_RACK);
   const addHandTile = (kind, i, isDrawn) => {
@@ -827,7 +829,19 @@ function scene3dSync() {
     m.userData.homePos = m.position.clone();
     m.userData.homeRot = m.rotation.clone();
     m.userData.handIdx = i;
-    if (P.suggestKind != null && kind === P.suggestKind) m.material[4].emissive.setHex(0x332200);
+    // Coach's suggested discard: material[4] (the face) is a per-KIND material
+    // cached and shared by every tile of that kind (s3FaceMat) — tinting it in
+    // place would leak the glow onto every other tile sharing that cache entry
+    // forever (nothing ever resets it). Clone it into a per-mesh instance
+    // instead, so only this tile lights up and it's naturally gone the moment
+    // this mesh is rebuilt (or not re-suggested) on the next sync.
+    if (P.suggestKind != null && kind === P.suggestKind) {
+      const hintMat = m.material[4].clone();
+      hintMat.emissive.setHex(0xffd65a);
+      hintMat.emissiveIntensity = 0.55;
+      m.material[4] = hintMat;
+      SCENE3D.hintTiles.push(m);
+    }
     SCENE3D.scene.add(m);
     SCENE3D.hand.push(m);
   };
@@ -1132,9 +1146,13 @@ function s3Loop(now) {
     if (SCENE3D.discardRing && SCENE3D.discardRing.visible) {
       SCENE3D.discardRing.material.opacity = 0.34 + 0.20 * (0.5 + 0.5 * Math.sin(t * 3.2));
     }
+    // the coach's suggested-discard tile(s) pulse too, mirroring the 2D
+    // board's fx-wiggle on .tile.suggest — same "look here" intent
+    for (const m of SCENE3D.hintTiles) m.material[4].emissiveIntensity = 0.4 + 0.35 * (0.5 + 0.5 * Math.sin(t * 3.2));
   } else {
     if (SCENE3D.lamp) SCENE3D.lamp.intensity = SCENE3D.lampBase;
     if (SCENE3D.discardRing) SCENE3D.discardRing.material.opacity = 0.45;
+    for (const m of SCENE3D.hintTiles) m.material[4].emissiveIntensity = 0.55;
   }
   SCENE3D.renderer.render(SCENE3D.scene, SCENE3D.camera);
 }
