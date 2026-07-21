@@ -427,6 +427,10 @@ function hostStartGame() {
   G.seats[0].name = NET.myName;
   G.seats[0].emoji = "🧑";
   G.seats[0].control = "local";
+  G.seats[0].wind = 0;   // placeholder, like seats 1-3 below — startHand() sets the real
+                          // dealer-relative wind; without this a snapshot broadcast between
+                          // now and then (e.g. the "match started" log a few lines down) hits
+                          // a guest's renderOpponents() with wind:undefined and throws
   for (let i = 1; i <= 3; i++) {
     const g = NET.guests[i - 1];
     const base = { score: 500, hand: [], melds: [], drawn: null, wind: i, threatWarned: false };
