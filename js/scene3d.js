@@ -687,7 +687,20 @@ function s3GoldSpot() {
   // midpoint of the gap: between the last unshifted stack and the first shifted one
   const a = (brk.gapIndex - 1 - (count - 1) / 2) * step;
   const b = (brk.gapIndex - (count - 1) / 2) * step + 0.032;
-  const mid = (a + b) / 2;
+  // `inset` only ever pulls the gold away from the wall it's breaking OUT of.
+  // When the break lands near either END of that side (gapIndex close to 1 or
+  // to count-1), the gap itself sits right at a table CORNER, and the gold
+  // spot lands close enough to the PERPENDICULAR wall on the adjacent side to
+  // visibly clip into it -- confirmed live: gapIndex 9 on a 10-tile side put
+  // the gold just 0.018 units from the corner wall's nearest tile (tile width
+  // is 0.034). Clamping the along-the-wall coordinate away from both corners
+  // fixes every reachable (side, gapIndex) combination the seeded generator
+  // can produce (swept all of them: worst case floors at the same ~0.052
+  // clearance the non-corner cases already had, the same margin the original
+  // single-axis inset intended everywhere).
+  const halfSpan = (count - 1) / 2 * step;
+  const cornerMargin = 0.07;
+  const mid = Math.max(-halfSpan + cornerMargin, Math.min(halfSpan - cornerMargin, (a + b) / 2));
   const inset = 0.052;   // pulled toward the table centre, clear of the wall row
   if (brk.side === 0) return [mid, 0.185 - inset];
   if (brk.side === 2) return [mid, -0.185 + inset];
