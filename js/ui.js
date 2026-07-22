@@ -252,6 +252,13 @@ function renderStatus() {
     note.innerHTML = ` = <b>${tileName(G.wildKind)}</b> — its 3 other copies are wild`;
     slot.appendChild(note);
   }
+  // 3D-only twin of the above, on the "You" pill (#gold-line lives inside
+  // #table, which is hidden in mode3d — see the CSS comment on #gold-chip-3d)
+  const slot3d = $("#gold-slot-3d");
+  if (slot3d) {
+    slot3d.innerHTML = "";
+    if (G.wildKind !== null && G.wildKind !== undefined) slot3d.appendChild(tileEl(G.wildKind, { mini: true }));
+  }
   renderFlowerRow($("#your-flowers"), you.flowers || []);
   // turn-order reflects actual seat names (party mode changes them).
   // M7.2: shown as a tooltip on the "You" pill — the inline line was clutter.
